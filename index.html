@@ -74,8 +74,28 @@
     }
     .chip.live { color: #d9ffef; border-color: rgba(102,255,187,.38); background: rgba(16,76,54,.36); }
 
+    #visualToggle {
+      position: fixed; left: 50%; top: max(18px, env(safe-area-inset-top)); z-index: 19;
+      min-width: 132px; height: 34px; padding: 0 14px; border-radius: 999px;
+      transform: translateX(-50%); backdrop-filter: blur(18px) saturate(130%);
+      border-color: rgba(115,230,255,.3); background: rgba(7,9,18,.7);
+      box-shadow: 0 10px 34px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.07);
+      font-size: 10px; font-weight: 760; letter-spacing: .1em; text-transform: uppercase;
+    }
+    #visualToggle:hover { transform: translate(-50%, -1px); background: rgba(255,255,255,.11); }
+    #visualToggle:active { transform: translate(-50%, 1px); }
+    #visualToggle.paused {
+      color: rgba(255,255,255,.72); border-color: rgba(255,139,216,.36);
+      background: linear-gradient(135deg, rgba(120,38,108,.34), rgba(20,24,40,.78));
+    }
+    body.visuals-off #stage,
+    body.visuals-off #veil,
+    body.visuals-off #grain { visibility: hidden; }
+    body.visuals-off { background: radial-gradient(circle at 50% 35%, #111624, #05060c 72%); }
+
     #panel {
-      position: fixed; left: 18px; bottom: max(18px, env(safe-area-inset-bottom)); width: min(430px, calc(100vw - 36px));
+      position: fixed; right: 18px; top: max(112px, calc(env(safe-area-inset-top) + 82px)); bottom: auto;
+      width: min(390px, calc(100vw - 36px)); max-height: calc(100vh - 145px); z-index: 13;
       border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
       background: var(--panel); backdrop-filter: blur(25px) saturate(130%); box-shadow: var(--shadow);
       transition: transform .35s ease, opacity .35s ease;
@@ -104,7 +124,7 @@
     #pieceName { font-size: 12px; font-weight: 720; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; }
     #pieceMeta { margin-top: 2px; color: var(--muted); font-size: 10px; }
 
-    .panel-body { padding: 13px 14px 14px; max-height: min(66vh, 600px); overflow: auto; scrollbar-width: thin; }
+    .panel-body { padding: 13px 14px 14px; max-height: calc(100vh - 205px); overflow: auto; scrollbar-width: thin; }
     .actions { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; margin-bottom: 12px; }
     .seed-wrap { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 10px; background: rgba(0,0,0,.17); min-width: 0; }
     .seed-wrap span { padding-left: 10px; color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .14em; }
@@ -127,6 +147,83 @@
     input[type="range"]::-moz-range-thumb { width: 13px; height: 13px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 0 0 4px rgba(115,230,255,.14); }
     .hint { margin-top: 11px; color: rgba(255,255,255,.43); font-size: 9px; line-height: 1.45; }
 
+    .section { margin: 12px 0; padding-top: 12px; border-top: 1px solid var(--line); }
+    .section-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+    .section-title strong { font-size: 9px; letter-spacing: .15em; text-transform: uppercase; color: rgba(255,255,255,.78); }
+    .section-title span { min-width: 0; color: var(--muted); font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .preset-grid .wide { grid-column: 1 / -1; }
+    .text-input { width: 100%; min-width: 0; height: 32px; border: 1px solid var(--line); border-radius: 9px; outline: 0; color: var(--text); background: rgba(0,0,0,.26); padding: 0 9px; font-size: 11px; }
+    .button-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+    .button-row.two { grid-template-columns: repeat(2, 1fr); }
+    .button-row .secondary { width: 100%; padding: 0 8px; }
+
+    #mixer {
+      position: fixed; left: 50%; top: max(112px, calc(env(safe-area-inset-top) + 82px)); width: min(430px, calc(100vw - 760px)); min-width: 330px;
+      max-height: calc(100vh - 145px); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; z-index: 12;
+      background: var(--panel); backdrop-filter: blur(25px) saturate(130%); box-shadow: var(--shadow);
+      transform: translateX(-50%); transition: transform .35s ease, opacity .35s ease;
+    }
+    #mixer.collapsed { transform: translate(-50%, calc(-100% + 58px)); }
+    .mixer-head { min-height: 57px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 12px 11px 15px; border-bottom: 1px solid var(--line); }
+    .mixer-title { min-width: 0; }
+    .mixer-title strong { display: block; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+    .mixer-title span { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mixer-head-actions { display: flex; gap: 7px; }
+    .mixer-body { padding: 12px; max-height: calc(100vh - 205px); overflow: auto; scrollbar-width: thin; }
+    .mixer-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 10px; }
+    .track { border: 1px solid var(--line); border-radius: 13px; padding: 10px; margin-bottom: 9px; background: rgba(0,0,0,.16); }
+    .track:last-child { margin-bottom: 0; }
+    .track-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+    .track-name { font-size: 10px; font-weight: 780; letter-spacing: .12em; text-transform: uppercase; }
+    .track-name small { display: block; margin-top: 2px; color: var(--muted); font-size: 8px; font-weight: 500; letter-spacing: .05em; text-transform: none; }
+    .track-buttons { display: flex; gap: 5px; }
+    .track-toggle { width: 28px; height: 25px; border-radius: 8px; padding: 0; font-size: 9px; font-weight: 800; }
+    .track-toggle.active { border-color: rgba(115,230,255,.55); background: rgba(50,190,220,.28); color: #eaffff; }
+    .track-toggle.mute.active { border-color: rgba(255,110,131,.58); background: rgba(180,40,68,.34); color: #ffe8ed; }
+    .track-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 10px; }
+    .track-grid .wide { grid-column: 1 / -1; }
+    .track .label-row { margin-bottom: 3px; }
+    .track label, .track output { font-size: 8px; }
+    #mixerStatus { margin-top: 9px; color: rgba(255,255,255,.48); font-size: 9px; line-height: 1.4; }
+
+    #arranger {
+      position: fixed; left: 18px; top: max(112px, calc(env(safe-area-inset-top) + 82px)); width: min(360px, calc(100vw - 36px));
+      max-height: calc(100vh - 145px); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; z-index: 14;
+      background: var(--panel-strong); backdrop-filter: blur(25px) saturate(130%); box-shadow: var(--shadow);
+      transition: transform .35s ease, opacity .35s ease;
+    }
+    #arranger.collapsed { transform: translateX(calc(-100% + 58px)); }
+    .arranger-head { min-height: 57px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 12px 11px 15px; border-bottom: 1px solid var(--line); }
+    .arranger-title { min-width: 0; }
+    .arranger-title strong { display: block; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+    .arranger-title span { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .arranger-head-actions { display: flex; gap: 7px; }
+    .arranger-body { padding: 12px; max-height: calc(100vh - 205px); overflow: auto; scrollbar-width: thin; }
+    .arranger-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .arranger-actions .wide { grid-column: 1 / -1; }
+    .arranger-play { border-color: rgba(126,234,255,.35); background: linear-gradient(135deg, rgba(61,201,232,.3), rgba(236,97,203,.22)); }
+    .arranger-play.playing { border-color: rgba(255,120,150,.55); background: linear-gradient(135deg, rgba(255,100,130,.42), rgba(180,73,255,.3)); }
+    .arranger-options { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 10px 0; padding: 8px 9px; border: 1px solid var(--line); border-radius: 10px; background: rgba(0,0,0,.14); }
+    .check-label { display: flex; align-items: center; gap: 7px; cursor: pointer; color: rgba(255,255,255,.72); font-size: 9px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; }
+    .check-label input { accent-color: var(--accent); }
+    #arrangementSummary { color: var(--muted); font-size: 9px; text-align: right; }
+    .arrangement-progress { height: 4px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.08); margin: 0 0 10px; }
+    #arrangementProgressBar { width: 0%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .12s linear; }
+    .scene-empty { padding: 22px 13px; border: 1px dashed rgba(255,255,255,.14); border-radius: 12px; color: var(--muted); font-size: 10px; line-height: 1.5; text-align: center; }
+    .scene { border: 1px solid var(--line); border-radius: 13px; padding: 10px; margin-bottom: 9px; background: rgba(0,0,0,.16); transition: border-color .2s ease, background .2s ease; }
+    .scene.active { border-color: rgba(115,230,255,.55); background: rgba(30,115,145,.18); }
+    .scene.transitioning { border-color: rgba(255,139,216,.55); background: rgba(130,45,115,.17); }
+    .scene:last-child { margin-bottom: 0; }
+    .scene-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 9px; margin-bottom: 8px; }
+    .scene-name { min-width: 0; font-size: 10px; font-weight: 780; line-height: 1.25; }
+    .scene-name small { display: block; margin-top: 2px; color: var(--muted); font-size: 8px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .scene-actions { display: flex; gap: 4px; flex-shrink: 0; }
+    .scene-actions button { width: 25px; height: 24px; padding: 0; border-radius: 7px; font-size: 9px; }
+    .scene-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .scene-number { width: 100%; height: 30px; border: 1px solid var(--line); border-radius: 8px; outline: 0; color: var(--text); background: rgba(0,0,0,.24); padding: 0 8px; font-size: 10px; }
+    #arrangementStatus { margin-top: 9px; color: rgba(255,255,255,.48); font-size: 9px; line-height: 1.4; }
+
     #legend {
       position: fixed; right: 22px; bottom: max(21px, env(safe-area-inset-bottom));
       color: rgba(255,255,255,.46); text-align: right; font-size: 9px; line-height: 1.6; letter-spacing: .09em; text-transform: uppercase;
@@ -142,9 +239,22 @@
       header { left: 16px; right: 16px; top: max(14px, env(safe-area-inset-top)); }
       #subtitle { max-width: 260px; }
       .status-stack .chip:nth-child(n+3) { display: none; }
-      #panel { left: 10px; width: calc(100vw - 20px); bottom: max(10px, env(safe-area-inset-bottom)); }
+      #panel { right: 10px; top: auto; width: calc(100vw - 20px); max-height: none; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 16; }
+      #panel.collapsed { transform: translateY(calc(100% - 58px)); }
+      #visualToggle { top: max(66px, calc(env(safe-area-inset-top) + 52px)); min-width: 118px; height: 31px; padding: 0 11px; font-size: 9px; }
+      #arranger { left: 10px; top: max(92px, calc(env(safe-area-inset-top) + 72px)); width: calc(100vw - 20px); max-height: 55vh; }
+      #arranger.collapsed { transform: translateX(calc(-100% + 50px)); }
+      .arranger-body { max-height: calc(55vh - 58px); }
+      #mixer { left: 50%; top: max(112px, calc(env(safe-area-inset-top) + 92px)); width: calc(100vw - 20px); min-width: 0; max-height: 54vh; }
+      #mixer.collapsed { transform: translate(-50%, calc(-100% + 50px)); }
+      .mixer-body { max-height: calc(54vh - 58px); }
       #legend { display: none; }
       .panel-body { max-height: 58vh; }
+    }
+    @media (min-width: 701px) and (max-width: 1180px) {
+      #arranger { width: 320px; }
+      #panel { width: 350px; }
+      #mixer { width: 360px; min-width: 300px; }
     }
     @media (max-height: 650px) {
       #subtitle { display: none; }
@@ -170,7 +280,36 @@
     </div>
   </header>
 
-  <section id="panel" aria-label="Composer controls">
+  <button id="visualToggle" class="secondary" type="button" aria-pressed="true" title="Pause visualization to reduce CPU/GPU use">◉ Visuals on</button>
+
+  <aside id="arranger" aria-label="Long-form arrangement composer">
+    <div class="arranger-head">
+      <div class="arranger-title"><strong>Arrangement composer</strong><span>Sequence settings · hold · crossfade</span></div>
+      <div class="arranger-head-actions">
+        <button id="arrangerCollapse" class="icon-button" type="button" title="Collapse arranger" aria-label="Collapse arranger">‹</button>
+      </div>
+    </div>
+    <div class="arranger-body">
+      <div class="arranger-actions">
+        <button id="arrangementPlay" class="secondary arranger-play wide" type="button">▶ Play arrangement</button>
+        <button id="arrangementAddCurrent" class="secondary" type="button">+ Current</button>
+        <button id="arrangementAddPreset" class="secondary" type="button">+ Preset</button>
+        <button id="arrangementImport" class="secondary" type="button">Import scenes</button>
+        <button id="arrangementExport" class="secondary" type="button">Export arrangement</button>
+        <button id="arrangementClear" class="secondary wide" type="button">Clear timeline</button>
+      </div>
+      <div class="arranger-options">
+        <label class="check-label"><input id="arrangementLoop" type="checkbox" /> Loop arrangement</label>
+        <span id="arrangementSummary">0 scenes</span>
+      </div>
+      <div class="arrangement-progress" aria-hidden="true"><div id="arrangementProgressBar"></div></div>
+      <div id="sceneList"></div>
+      <div id="arrangementStatus">Add the current system, a local preset, or one or more exported JSON settings.</div>
+      <input id="arrangementFile" type="file" accept="application/json,.json" multiple hidden />
+    </div>
+  </aside>
+
+  <section id="panel" aria-label="System controls">
     <div class="panel-head">
       <div class="transport">
         <button id="play" class="primary" type="button">▶ Start</button>
@@ -187,6 +326,25 @@
         <button id="generate" class="secondary" type="button">Generate</button>
         <button id="save" class="secondary" type="button">PNG</button>
       </div>
+
+      <div class="section" aria-label="Settings library">
+        <div class="section-title"><strong>Settings library</strong><span id="settingsStatus">Autosaves in this browser</span></div>
+        <div class="preset-grid">
+          <input id="presetName" class="text-input wide" type="text" placeholder="Preset name" maxlength="64" />
+          <select id="presetSelect" class="wide" aria-label="Saved presets"><option value="">No saved presets</option></select>
+          <div class="button-row wide">
+            <button id="savePreset" class="secondary" type="button">Save</button>
+            <button id="loadPreset" class="secondary" type="button">Load</button>
+            <button id="deletePreset" class="secondary" type="button">Delete</button>
+          </div>
+          <div class="button-row two wide">
+            <button id="exportSettings" class="secondary" type="button">Export JSON</button>
+            <button id="importSettings" class="secondary" type="button">Import JSON</button>
+          </div>
+        </div>
+        <input id="settingsFile" type="file" accept="application/json,.json" hidden />
+      </div>
+
       <div class="grid">
         <div class="control">
           <div class="label-row"><label for="key">Root</label></div>
@@ -245,9 +403,27 @@
           <input id="dynamicMax" type="range" min="-18" max="-1" step="1" value="-6" />
         </div>
       </div>
-      <div class="hint">Dynamic minimum raises only the quietest note level; dynamic maximum sets the final output ceiling. A smoothed output gate prevents mobile-speaker clicks without attenuating every synth twice. Space: play/stop · R: new seed · G: regenerate · click the field to bend the attractor.</div>
+      <div class="hint">Settings autosave locally and can be exported as portable JSON with the exact generated systems and mixer strips. Dynamic minimum raises only the quietest note level; dynamic maximum sets the final output ceiling. Space: play/stop · V: visuals · R: new seed · G: regenerate · click the field to bend the attractor.</div>
     </div>
   </section>
+
+  <aside id="mixer" aria-label="Multitrack mixer">
+    <div class="mixer-head">
+      <div class="mixer-title"><strong>Multitrack mixer</strong><span>Level · duration · fade dynamics</span></div>
+      <div class="mixer-head-actions">
+        <button id="mixerImport" class="icon-button" type="button" title="Import exported system settings" aria-label="Import exported system settings">⇩</button>
+        <button id="mixerCollapse" class="icon-button" type="button" title="Collapse mixer" aria-label="Collapse mixer">⌃</button>
+      </div>
+    </div>
+    <div class="mixer-body">
+      <div class="mixer-actions">
+        <button id="mixerExport" class="secondary" type="button">Export system</button>
+        <button id="mixerReset" class="secondary" type="button">Reset mixer</button>
+      </div>
+      <div id="trackList"></div>
+      <div id="mixerStatus">Imported JSON restores these strips with the composer settings.</div>
+    </div>
+  </aside>
 
   <div id="legend">Fractal frame = mixed Julia field<br />Orbit nodes = harmonic systems<br />Ring = central attractor</div>
   <div id="error" role="alert"></div>
@@ -392,6 +568,34 @@
     }
 
     // ---------------------------------------------------------------------
+    // Portable settings and multitrack mixer model
+    // ---------------------------------------------------------------------
+    const SETTINGS_VERSION = 3;
+    const VISUALS_STORAGE_KEY = "juliaDroneField.visualsEnabled.v1";
+    const PRESET_STORAGE_KEY = "juliaDroneField.presets.v3";
+    const LAST_SETTINGS_KEY = "juliaDroneField.lastSettings.v3";
+    const LEGACY_PRESET_STORAGE_KEY = "juliaDroneField.presets.v2";
+    const LEGACY_LAST_SETTINGS_KEY = "juliaDroneField.lastSettings.v2";
+    const TRACK_DEFS = {
+      drone:  { label: "Drone",  detail: "Lower harmonic bed", level: 0, duration: 1, fadeIn: 5.5, fadeOut: 9 },
+      haze:   { label: "Haze",   detail: "Upper spectral layer", level: 0, duration: 1, fadeIn: 2.5, fadeOut: 10 },
+      bass:   { label: "Bass",   detail: "Sub pulse", level: 0, duration: 1, fadeIn: 1.5, fadeOut: 6 },
+      melody: { label: "Melody", detail: "Fractal FM voice", level: 0, duration: 1, fadeIn: .06, fadeOut: 4.5 },
+      noise:  { label: "Noise",  detail: "Pink transition wash", level: 0, duration: 1, fadeIn: 1.8, fadeOut: 3 }
+    };
+    function createDefaultMixer() {
+      return Object.fromEntries(Object.entries(TRACK_DEFS).map(([key, def]) => [key, {
+        level: def.level, duration: def.duration, fadeIn: def.fadeIn, fadeOut: def.fadeOut, mute: false, solo: false
+      }]));
+    }
+    function createDefaultArrangement() {
+      return {
+        scenes: [], loop: false, running: false, activeIndex: -1, phase: "idle",
+        phaseStartedAt: 0, sceneTransition: null, lastUiAt: 0
+      };
+    }
+
+    // ---------------------------------------------------------------------
     // State and DOM
     // ---------------------------------------------------------------------
     const $ = (id) => document.getElementById(id);
@@ -399,7 +603,16 @@
       canvas: $("stage"), panel: $("panel"), play: $("play"), collapse: $("collapse"), generate: $("generate"), save: $("save"), seed: $("seed"),
       key: $("key"), scale: $("scale"), tempo: $("tempo"), systems: $("systems"), density: $("density"), drift: $("drift"), gravity: $("gravity"),
       reverb: $("reverb"), brightness: $("brightness"), motion: $("motion"), dynamicMin: $("dynamicMin"), dynamicMax: $("dynamicMax"), pieceName: $("pieceName"), pieceMeta: $("pieceMeta"),
-      audioChip: $("audioChip"), renderChip: $("renderChip"), cChip: $("cChip"), error: $("error")
+      audioChip: $("audioChip"), renderChip: $("renderChip"), cChip: $("cChip"), error: $("error"),
+      presetName: $("presetName"), presetSelect: $("presetSelect"), savePreset: $("savePreset"), loadPreset: $("loadPreset"), deletePreset: $("deletePreset"),
+      exportSettings: $("exportSettings"), importSettings: $("importSettings"), settingsFile: $("settingsFile"), settingsStatus: $("settingsStatus"),
+      mixer: $("mixer"), mixerCollapse: $("mixerCollapse"), mixerImport: $("mixerImport"), mixerExport: $("mixerExport"), mixerReset: $("mixerReset"),
+      trackList: $("trackList"), mixerStatus: $("mixerStatus"),
+      arranger: $("arranger"), arrangerCollapse: $("arrangerCollapse"), arrangementPlay: $("arrangementPlay"), arrangementAddCurrent: $("arrangementAddCurrent"),
+      arrangementAddPreset: $("arrangementAddPreset"), arrangementImport: $("arrangementImport"), arrangementExport: $("arrangementExport"), arrangementClear: $("arrangementClear"),
+      arrangementLoop: $("arrangementLoop"), arrangementSummary: $("arrangementSummary"), arrangementProgressBar: $("arrangementProgressBar"),
+      sceneList: $("sceneList"), arrangementStatus: $("arrangementStatus"), arrangementFile: $("arrangementFile"),
+      visualToggle: $("visualToggle")
     };
     const ctx = els.canvas.getContext("2d", { alpha: false, desynchronized: true });
     const fractalCanvas = document.createElement("canvas");
@@ -412,7 +625,8 @@
       visualWorker: null, workerBusy: false, workerFrames: 0, lastWorkerFpsAt: performance.now(), workerFps: 0,
       fractalReady: false, visualTime: 0, lastFrame: performance.now(), recentNotes: [],
       renderScale: 1, nextRenderAt: 0, fftData: new Float32Array(64), transportStep: 0,
-      stopTimer: null, rebuildTimer: null
+      stopTimer: null, rebuildTimer: null, mixer: createDefaultMixer(), presets: [], autoSaveTimer: null,
+      arrangement: createDefaultArrangement(), sceneTransition: null, visualsEnabled: true
     };
 
     function controlValue(id) { return Number(els[id].value); }
@@ -454,6 +668,581 @@
     }
 
     // ---------------------------------------------------------------------
+    // Settings persistence, JSON interchange, and mixer UI
+    // ---------------------------------------------------------------------
+    const CONTROL_IDS = ["key","scale","tempo","systems","density","drift","gravity","reverb","brightness","motion","dynamicMin","dynamicMax"];
+
+    function cloneJson(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }
+    function setStatus(message, isError = false) {
+      els.settingsStatus.textContent = message;
+      els.mixerStatus.textContent = message;
+      if (els.arrangementStatus) els.arrangementStatus.textContent = message;
+      els.settingsStatus.style.color = isError ? "var(--danger)" : "";
+      els.mixerStatus.style.color = isError ? "var(--danger)" : "";
+      if (els.arrangementStatus) els.arrangementStatus.style.color = isError ? "var(--danger)" : "";
+    }
+    function normalizeSettingPayload(payload) {
+      return payload?.settings && typeof payload.settings === "object" ? payload.settings : payload;
+    }
+    function sanitizeMixer(payload) {
+      const next = createDefaultMixer();
+      if (!payload || typeof payload !== "object") return next;
+      for (const key of Object.keys(TRACK_DEFS)) {
+        const source = payload[key];
+        if (!source || typeof source !== "object") continue;
+        next[key].level = clamp(Number(source.level ?? next[key].level), -36, 6);
+        next[key].duration = clamp(Number(source.duration ?? next[key].duration), .25, 3);
+        next[key].fadeIn = clamp(Number(source.fadeIn ?? next[key].fadeIn), .01, 12);
+        next[key].fadeOut = clamp(Number(source.fadeOut ?? next[key].fadeOut), .05, 16);
+        next[key].mute = Boolean(source.mute);
+        next[key].solo = Boolean(source.solo);
+      }
+      return next;
+    }
+    function stripNestedArrangement(payload) {
+      const data = cloneJson(normalizeSettingPayload(payload));
+      if (data && typeof data === "object") delete data.arrangement;
+      return data;
+    }
+    function serializeArrangement() {
+      return {
+        loop: Boolean(state.arrangement.loop),
+        scenes: state.arrangement.scenes.map(scene => ({
+          id: scene.id, name: scene.name, duration: scene.duration, transition: scene.transition,
+          settings: stripNestedArrangement(scene.settings)
+        }))
+      };
+    }
+    function sanitizeArrangement(payload) {
+      const source = payload && typeof payload === "object" ? payload : {};
+      const scenes = Array.isArray(source.scenes) ? source.scenes : [];
+      return {
+        ...createDefaultArrangement(),
+        loop: Boolean(source.loop),
+        scenes: scenes.map((scene, index) => {
+          const rawSettings = scene?.settings && typeof scene.settings === "object" ? scene.settings : scene;
+          const settings = stripNestedArrangement(rawSettings);
+          if (!settings || typeof settings !== "object") return null;
+          return {
+            id: String(scene?.id || `scene-${Date.now().toString(36)}-${index}-${Math.random().toString(36).slice(2,6)}`),
+            name: String(scene?.name || settings.name || settings.composition?.name || `Scene ${index + 1}`).slice(0,80),
+            duration: clamp(Number(scene?.duration ?? 120), 5, 3600),
+            transition: clamp(Number(scene?.transition ?? 15), 0, 300),
+            settings
+          };
+        }).filter(Boolean)
+      };
+    }
+    function captureSettings(name = "", includeArrangement = true) {
+      const controls = {};
+      for (const id of CONTROL_IDS) controls[id] = els[id].value;
+      const data = {
+        app: "Julia Drone Field",
+        version: SETTINGS_VERSION,
+        name: name || els.presetName.value.trim() || state.composition?.name || state.seed,
+        exportedAt: new Date().toISOString(),
+        seed: els.seed.value.trim() || state.seed || "dendrite",
+        controls,
+        mixer: cloneJson(state.mixer),
+        systems: cloneJson(state.systems),
+        composition: cloneJson(state.composition)
+      };
+      if (includeArrangement) data.arrangement = serializeArrangement();
+      return data;
+    }
+    function applyControlSnapshot(data) {
+      if (data.seed != null) els.seed.value = String(data.seed);
+      if (!data.controls || typeof data.controls !== "object") return;
+      for (const id of CONTROL_IDS) {
+        if (data.controls[id] == null || !els[id]) continue;
+        const value = String(data.controls[id]);
+        if (els[id].tagName === "SELECT") {
+          if ([...els[id].options].some(o => o.value === value)) els[id].value = value;
+        } else {
+          const num = Number(value);
+          if (Number.isFinite(num)) els[id].value = String(clamp(num, Number(els[id].min), Number(els[id].max)));
+        }
+      }
+    }
+    function restoreGeneratedSnapshot(payload) {
+      if (Array.isArray(payload.systems) && payload.systems.length) {
+        const valid = payload.systems.every(s => s && Number.isFinite(Number(s.re)) && Number.isFinite(Number(s.im)) && s.color);
+        if (valid) state.systems = cloneJson(payload.systems);
+      }
+      if (payload.composition && Array.isArray(payload.composition.melody) && Array.isArray(payload.composition.drone)) {
+        state.composition = cloneJson(payload.composition);
+        els.pieceName.textContent = state.composition.name || payload.name || "Imported field";
+        els.pieceMeta.textContent = `${state.composition.root || NOTE_NAMES[state.composition.rootPc] || "—"} ${SCALE_LABELS[state.composition.scaleName] || state.composition.scaleName || "scale"} · ${state.systems.length} systems · ${Math.round(controlValue("tempo"))} bpm`;
+      }
+      const c0 = state.systems[0];
+      if (c0) {
+        els.cChip.textContent = `c = ${c0.re >= 0 ? "+" : ""}${Number(c0.re).toFixed(3)} ${c0.im >= 0 ? "+" : "−"} ${Math.abs(Number(c0.im)).toFixed(3)}i`;
+        if (c0.color) {
+          document.documentElement.style.setProperty("--accent", `hsl(${Math.round(c0.color.coolHue * 360)} 92% 72%)`);
+          document.documentElement.style.setProperty("--accent-2", `hsl(${Math.round(c0.color.warmHue * 360)} 92% 72%)`);
+        }
+      }
+    }
+    function applySettings(payload, options = {}) {
+      if (!payload || typeof payload !== "object") throw new Error("The selected JSON file does not contain settings.");
+      if (state.arrangement?.running && !options.skipArrangement) stopArrangement(false);
+      const data = normalizeSettingPayload(payload);
+      applyControlSnapshot(data);
+      normalizeDynamicRange();
+      state.mixer = sanitizeMixer(data.mixer);
+      renderMixerUI();
+      updateOutputs();
+      generateComposition(els.seed.value.trim() || "dendrite", { skipRestart: Boolean(options.skipRestart), skipAutosave: true });
+      restoreGeneratedSnapshot(data);
+      if (data.arrangement && !options.skipArrangement) {
+        state.arrangement = sanitizeArrangement(data.arrangement);
+        els.arrangementLoop.checked = state.arrangement.loop;
+        renderArrangementUI();
+      }
+      updateAudioParameters();
+      updateMixerAudio();
+      requestVisual(true);
+      if (data.name) els.presetName.value = String(data.name).slice(0,64);
+      if (!options.skipAutosave) scheduleAutoSave();
+      if (!options.silent) setStatus(options.message || `Loaded ${data.name || "system settings"}`);
+    }
+    function readPresetLibrary() {
+      try {
+        const raw = localStorage.getItem(PRESET_STORAGE_KEY) || localStorage.getItem(LEGACY_PRESET_STORAGE_KEY) || "[]";
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed.filter(p => p && p.id && p.settings) : [];
+      } catch (error) {
+        console.warn("Could not read presets", error);
+        return [];
+      }
+    }
+    function writePresetLibrary() {
+      try { localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(state.presets)); }
+      catch (error) {
+        console.warn("Local preset storage is unavailable", error);
+        setStatus("Browser storage is unavailable; use Export JSON instead", true);
+        throw error;
+      }
+    }
+    function refreshPresetSelect(selectedId = "") {
+      els.presetSelect.innerHTML = "";
+      if (!state.presets.length) {
+        els.presetSelect.add(new Option("No saved presets", ""));
+        return;
+      }
+      const sorted = [...state.presets].sort((a,b) => String(a.name).localeCompare(String(b.name)));
+      for (const preset of sorted) els.presetSelect.add(new Option(preset.name, preset.id));
+      els.presetSelect.value = selectedId && state.presets.some(p => p.id === selectedId) ? selectedId : sorted[0].id;
+    }
+    function savePresetToLibrary() {
+      const name = els.presetName.value.trim() || state.composition?.name || state.seed;
+      const selected = state.presets.find(p => p.id === els.presetSelect.value);
+      const existingByName = state.presets.find(p => p.name.toLowerCase() === name.toLowerCase());
+      const target = existingByName || (selected && selected.name.toLowerCase() === name.toLowerCase() ? selected : null);
+      const id = target?.id || `preset-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,7)}`;
+      const record = { id, name, updatedAt: new Date().toISOString(), settings: captureSettings(name) };
+      const index = state.presets.findIndex(p => p.id === id);
+      if (index >= 0) state.presets[index] = record; else state.presets.push(record);
+      try {
+        writePresetLibrary();
+        refreshPresetSelect(id);
+        els.presetName.value = name;
+        setStatus(`Saved “${name}” locally`);
+      } catch {
+        state.presets = readPresetLibrary();
+        refreshPresetSelect();
+      }
+    }
+    function loadSelectedPreset() {
+      const preset = state.presets.find(p => p.id === els.presetSelect.value);
+      if (!preset) return setStatus("Choose a saved preset first", true);
+      applySettings(preset.settings, { message: `Loaded “${preset.name}”` });
+    }
+    function deleteSelectedPreset() {
+      const preset = state.presets.find(p => p.id === els.presetSelect.value);
+      if (!preset) return setStatus("Choose a saved preset first", true);
+      const previous = state.presets;
+      state.presets = state.presets.filter(p => p.id !== preset.id);
+      try {
+        writePresetLibrary();
+        refreshPresetSelect();
+        setStatus(`Deleted “${preset.name}”`);
+      } catch {
+        state.presets = previous;
+        refreshPresetSelect(preset.id);
+      }
+    }
+    function scheduleAutoSave() {
+      if (state.autoSaveTimer) clearTimeout(state.autoSaveTimer);
+      state.autoSaveTimer = setTimeout(() => {
+        state.autoSaveTimer = null;
+        try { localStorage.setItem(LAST_SETTINGS_KEY, JSON.stringify(captureSettings("Last session"))); }
+        catch (error) { console.warn("Autosave unavailable", error); }
+      }, 220);
+    }
+    function loadLastSettings() {
+      try {
+        const raw = localStorage.getItem(LAST_SETTINGS_KEY) || localStorage.getItem(LEGACY_LAST_SETTINGS_KEY);
+        if (!raw) return false;
+        applySettings(JSON.parse(raw), { skipAutosave: true, message: "Restored last browser session" });
+        return true;
+      } catch (error) {
+        console.warn("Could not restore last settings", error);
+        return false;
+      }
+    }
+    function exportSettingsJson() {
+      const data = captureSettings();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const link = document.createElement("a");
+      const safe = (data.name || "julia-drone-system").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
+      link.download = `${safe || "julia-drone-system"}.json`;
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      setStatus("Exported portable system JSON");
+    }
+    async function importSettingsFile(file) {
+      if (!file) return;
+      try {
+        const payload = JSON.parse(await file.text());
+        applySettings(payload, { message: `Imported ${file.name}` });
+      } catch (error) {
+        console.error(error);
+        setStatus(error?.message || "Could not import settings", true);
+        showError(error?.message || "Could not import settings JSON.");
+      } finally {
+        els.settingsFile.value = "";
+      }
+    }
+    function renderMixerUI() {
+      els.trackList.innerHTML = Object.entries(TRACK_DEFS).map(([key, def]) => {
+        const mix = state.mixer[key];
+        return `<section class="track" data-track="${key}">
+          <div class="track-head">
+            <div class="track-name">${def.label}<small>${def.detail}</small></div>
+            <div class="track-buttons">
+              <button class="secondary track-toggle mute ${mix.mute ? "active" : ""}" type="button" data-track-action="mute" data-track="${key}" aria-pressed="${mix.mute}">M</button>
+              <button class="secondary track-toggle ${mix.solo ? "active" : ""}" type="button" data-track-action="solo" data-track="${key}" aria-pressed="${mix.solo}">S</button>
+            </div>
+          </div>
+          <div class="track-grid">
+            <div class="control wide"><div class="label-row"><label>Level</label><output data-track-output="level">${mix.level > 0 ? "+" : ""}${mix.level.toFixed(1)} dB</output></div><input type="range" min="-36" max="6" step="0.5" value="${mix.level}" data-mixer-field="level" data-track="${key}" /></div>
+            <div class="control"><div class="label-row"><label>Duration</label><output data-track-output="duration">${mix.duration.toFixed(2)}×</output></div><input type="range" min="0.25" max="3" step="0.05" value="${mix.duration}" data-mixer-field="duration" data-track="${key}" /></div>
+            <div class="control"><div class="label-row"><label>Fade in</label><output data-track-output="fadeIn">${mix.fadeIn.toFixed(2)} s</output></div><input type="range" min="0.01" max="12" step="0.01" value="${mix.fadeIn}" data-mixer-field="fadeIn" data-track="${key}" /></div>
+            <div class="control wide"><div class="label-row"><label>Fade out / release</label><output data-track-output="fadeOut">${mix.fadeOut.toFixed(2)} s</output></div><input type="range" min="0.05" max="16" step="0.05" value="${mix.fadeOut}" data-mixer-field="fadeOut" data-track="${key}" /></div>
+          </div>
+        </section>`;
+      }).join("");
+    }
+    function updateMixerOutput(track, field) {
+      const el = els.trackList.querySelector(`[data-track="${track}"] [data-track-output="${field}"]`);
+      if (!el) return;
+      const value = state.mixer[track][field];
+      if (field === "level") el.value = `${value > 0 ? "+" : ""}${value.toFixed(1)} dB`;
+      else if (field === "duration") el.value = `${value.toFixed(2)}×`;
+      else el.value = `${value.toFixed(2)} s`;
+    }
+    function resetMixer() {
+      state.mixer = createDefaultMixer();
+      renderMixerUI();
+      updateMixerAudio();
+      scheduleAutoSave();
+      setStatus("Mixer reset to the original voicing");
+    }
+
+    // ---------------------------------------------------------------------
+    // Long-form arrangement composer
+    // ---------------------------------------------------------------------
+    function formatClock(seconds) {
+      const value = Math.max(0, Math.round(Number(seconds) || 0));
+      const h = Math.floor(value / 3600), m = Math.floor((value % 3600) / 60), s = value % 60;
+      return h ? `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}` : `${m}:${String(s).padStart(2,"0")}`;
+    }
+    function sceneSnapshotIsPlayable(settings) {
+      return Boolean(settings && Array.isArray(settings.systems) && settings.systems.length &&
+        settings.composition && Array.isArray(settings.composition.melody) && Array.isArray(settings.composition.drone));
+    }
+    function makeArrangementScene(payload, fallbackName = "Imported scene") {
+      const settings = stripNestedArrangement(payload);
+      if (!settings || typeof settings !== "object") throw new Error("This file does not contain system settings.");
+      if (!sceneSnapshotIsPlayable(settings)) {
+        throw new Error("An arrangement scene needs an exported system snapshot with systems and composition data.");
+      }
+      return {
+        id: `scene-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,7)}`,
+        name: String(settings.name || settings.composition?.name || fallbackName).slice(0,80),
+        duration: 120,
+        transition: 15,
+        settings
+      };
+    }
+    function arrangementDuration() {
+      const scenes = state.arrangement.scenes;
+      return scenes.reduce((sum, scene, index) => sum + scene.duration + ((index < scenes.length - 1 || state.arrangement.loop) ? scene.transition : 0), 0);
+    }
+    function addArrangementScene(payload, fallbackName) {
+      const scene = makeArrangementScene(payload, fallbackName);
+      state.arrangement.scenes.push(scene);
+      renderArrangementUI();
+      scheduleAutoSave();
+      setStatus(`Added “${scene.name}” to the arrangement`);
+      return scene;
+    }
+    function addCurrentToArrangement() {
+      addArrangementScene(captureSettings(state.composition?.name || state.seed, false), state.composition?.name || "Current system");
+    }
+    function addSelectedPresetToArrangement() {
+      const preset = state.presets.find(p => p.id === els.presetSelect.value);
+      if (!preset) return setStatus("Choose a saved preset before adding it", true);
+      try { addArrangementScene(preset.settings, preset.name); }
+      catch (error) { setStatus(error.message, true); }
+    }
+    async function importArrangementFiles(files) {
+      const list = [...(files || [])];
+      if (!list.length) return;
+      let added = 0;
+      const errors = [];
+      for (const file of list) {
+        try {
+          const payload = JSON.parse(await file.text());
+          const values = Array.isArray(payload) ? payload : [payload];
+          for (const value of values) {
+            const data = normalizeSettingPayload(value);
+            if (data?.arrangement?.scenes?.length) {
+              const imported = sanitizeArrangement(data.arrangement);
+              for (const scene of imported.scenes) {
+                state.arrangement.scenes.push({ ...scene, id: `scene-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,7)}` });
+                added++;
+              }
+            } else {
+              state.arrangement.scenes.push(makeArrangementScene(data, file.name.replace(/\.json$/i, "")));
+              added++;
+            }
+          }
+        } catch (error) {
+          errors.push(`${file.name}: ${error.message || "invalid JSON"}`);
+        }
+      }
+      els.arrangementFile.value = "";
+      renderArrangementUI();
+      scheduleAutoSave();
+      if (errors.length) setStatus(`Added ${added} scene${added === 1 ? "" : "s"}; ${errors.length} file${errors.length === 1 ? "" : "s"} failed`, true);
+      else setStatus(`Added ${added} imported scene${added === 1 ? "" : "s"}`);
+    }
+    function exportArrangementJson() {
+      const data = captureSettings(`${state.composition?.name || "Julia Drone"} arrangement`, true);
+      data.kind = "julia-drone-arrangement";
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const link = document.createElement("a");
+      const safe = String(data.name || "julia-drone-arrangement").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
+      link.download = `${safe || "julia-drone-arrangement"}.json`;
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      setStatus(`Exported ${state.arrangement.scenes.length}-scene arrangement`);
+    }
+    function renderArrangementUI() {
+      const scenes = state.arrangement.scenes;
+      els.arrangementLoop.checked = Boolean(state.arrangement.loop);
+      els.arrangementSummary.textContent = `${scenes.length} scene${scenes.length === 1 ? "" : "s"} · ${formatClock(arrangementDuration())}`;
+      if (!scenes.length) {
+        els.sceneList.innerHTML = '<div class="scene-empty">No scenes yet. Add the current system, a local preset, or import exported settings JSON.</div>';
+      } else {
+        els.sceneList.innerHTML = scenes.map((scene, index) => {
+          const isActive = index === state.arrangement.activeIndex;
+          const isTarget = state.sceneTransition?.toIndex === index;
+          const root = scene.settings.composition?.root || "—";
+          const scale = SCALE_LABELS[scene.settings.composition?.scaleName] || scene.settings.composition?.scaleName || "scale";
+          return `<section class="scene ${isActive ? "active" : ""} ${isTarget ? "transitioning" : ""}" data-scene-index="${index}">
+            <div class="scene-head">
+              <div class="scene-name">${index + 1}. ${escapeHtml(scene.name)}<small>${escapeHtml(root)} ${escapeHtml(scale)} · ${escapeHtml(String(scene.settings.controls?.tempo || "—"))} bpm</small></div>
+              <div class="scene-actions">
+                <button class="secondary" type="button" data-scene-action="up" title="Move up">↑</button>
+                <button class="secondary" type="button" data-scene-action="down" title="Move down">↓</button>
+                <button class="secondary" type="button" data-scene-action="load" title="Load scene">↗</button>
+                <button class="secondary" type="button" data-scene-action="remove" title="Remove scene">×</button>
+              </div>
+            </div>
+            <div class="scene-grid">
+              <div><div class="label-row"><label>Play period</label><output>${formatClock(scene.duration)}</output></div><input class="scene-number" type="number" min="5" max="3600" step="5" value="${scene.duration}" data-scene-field="duration" /></div>
+              <div><div class="label-row"><label>Crossfade</label><output>${formatClock(scene.transition)}</output></div><input class="scene-number" type="number" min="0" max="300" step="1" value="${scene.transition}" data-scene-field="transition" /></div>
+            </div>
+          </section>`;
+        }).join("");
+      }
+      els.arrangementPlay.textContent = state.arrangement.running ? "■ Stop arrangement" : "▶ Play arrangement";
+      els.arrangementPlay.classList.toggle("playing", state.arrangement.running);
+    }
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>'"]/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[char]));
+    }
+    function stopArrangement(stopAudio = false) {
+      state.arrangement.running = false;
+      state.arrangement.phase = "idle";
+      state.arrangement.activeIndex = -1;
+      state.arrangement.sceneTransition = null;
+      state.sceneTransition = null;
+      els.arrangementProgressBar.style.width = "0%";
+      renderArrangementUI();
+      if (stopAudio && state.playing) void togglePlayback();
+    }
+    async function startArrangement() {
+      if (!state.arrangement.scenes.length) return setStatus("Add at least one scene before playing the arrangement", true);
+      const first = state.arrangement.scenes[0];
+      applySettings(first.settings, { skipArrangement: true, skipAutosave: true, message: `Loaded first scene “${first.name}”` });
+      if (!state.playing) await togglePlayback();
+      state.arrangement.running = true;
+      state.arrangement.activeIndex = 0;
+      state.arrangement.phase = "hold";
+      state.arrangement.phaseStartedAt = performance.now() / 1000;
+      state.arrangement.sceneTransition = null;
+      state.sceneTransition = null;
+      renderArrangementUI();
+      setStatus(`Arrangement playing · ${first.name}`);
+    }
+    async function toggleArrangementPlayback() {
+      if (state.arrangement.running) stopArrangement(true);
+      else {
+        try { await startArrangement(); }
+        catch (error) { console.error(error); setStatus(error.message || "Could not start arrangement", true); showError(error.message || "Could not start arrangement"); }
+      }
+    }
+    function beginSceneTransition(now, fromIndex, toIndex) {
+      const fromScene = state.arrangement.scenes[fromIndex];
+      const toScene = state.arrangement.scenes[toIndex];
+      if (!fromScene || !toScene) return;
+      const duration = Math.max(0, Number(fromScene.transition) || 0);
+      if (duration <= .01) {
+        applySettings(toScene.settings, { skipArrangement: true, skipAutosave: true, skipRestart: true, silent: true });
+        state.arrangement.activeIndex = toIndex;
+        state.arrangement.phase = "hold";
+        state.arrangement.phaseStartedAt = now;
+        renderArrangementUI();
+        return;
+      }
+      const from = captureSettings(fromScene.name, false);
+      const to = stripNestedArrangement(toScene.settings);
+      state.sceneTransition = { from, to, fromIndex, toIndex, startedAt: now, duration, progress: 0 };
+      state.arrangement.sceneTransition = state.sceneTransition;
+      state.arrangement.phase = "transition";
+      state.arrangement.phaseStartedAt = now;
+      renderArrangementUI();
+      setStatus(`Crossfading “${fromScene.name}” → “${toScene.name}” over ${formatClock(duration)}`);
+
+      // Seed the destination's long layers immediately. Their own attack
+      // envelopes plus the scheduler's equal-power weights create overlap
+      // without stopping the transport or clicking the output gate.
+      if (state.audioReady && to.composition) {
+        const at = Tone.now() + .03;
+        const sustain = Math.max(duration + 4, 8);
+        state.audio.drone.triggerAttackRelease(to.composition.drone || [], sustain, at, safeVelocity(.08));
+        state.audio.haze.triggerAttackRelease(to.composition.upperDrone || [], sustain, at, safeVelocity(.035));
+      }
+    }
+    function interpolateDeep(a, b, t) {
+      if (Number.isFinite(Number(a)) && Number.isFinite(Number(b)) && typeof a !== "boolean" && typeof b !== "boolean") return lerp(Number(a), Number(b), t);
+      if (a && b && typeof a === "object" && typeof b === "object" && !Array.isArray(a) && !Array.isArray(b)) {
+        const out = {};
+        for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) out[key] = interpolateDeep(a[key], b[key], t);
+        return out;
+      }
+      return t < .5 ? cloneJson(a) : cloneJson(b);
+    }
+    function interpolateSystems(fromSystems, toSystems, t) {
+      if (!fromSystems?.length) return cloneJson(toSystems || []);
+      if (!toSystems?.length) return cloneJson(fromSystems || []);
+      const count = Math.max(fromSystems.length, toSystems.length);
+      return Array.from({ length: count }, (_, index) => interpolateDeep(fromSystems[index % fromSystems.length], toSystems[index % toSystems.length], t));
+    }
+    function transitionProgress() {
+      const tr = state.sceneTransition;
+      if (!tr) return 0;
+      return clamp(((performance.now() / 1000) - tr.startedAt) / Math.max(.001, tr.duration), 0, 1);
+    }
+    function getPlaybackLayers() {
+      const tr = state.sceneTransition;
+      if (!tr || !tr.from?.composition || !tr.to?.composition) return [{ composition: state.composition, systems: state.systems, gain: 1 }];
+      const p = transitionProgress();
+      return [
+        { composition: tr.from.composition, systems: tr.from.systems || state.systems, gain: Math.cos(p * Math.PI * .5) },
+        { composition: tr.to.composition, systems: tr.to.systems || state.systems, gain: Math.sin(p * Math.PI * .5) }
+      ].filter(layer => layer.composition && layer.gain > .015);
+    }
+    function updateTransitionState(now, tr) {
+      const t = clamp((now - tr.startedAt) / Math.max(.001, tr.duration), 0, 1);
+      tr.progress = t;
+      els.arrangementProgressBar.style.width = `${t * 100}%`;
+      if (t < 1 && now - state.arrangement.lastUiAt < .08) return;
+      state.arrangement.lastUiAt = now;
+      const fromControls = tr.from.controls || {}, toControls = tr.to.controls || {};
+      for (const id of CONTROL_IDS) {
+        if (!els[id]) continue;
+        if (els[id].tagName === "SELECT") {
+          const chosen = t < .5 ? fromControls[id] : toControls[id];
+          if (chosen != null && [...els[id].options].some(o => o.value === String(chosen))) els[id].value = String(chosen);
+        } else {
+          const a = Number(fromControls[id]), b = Number(toControls[id]);
+          if (Number.isFinite(a) && Number.isFinite(b)) els[id].value = String(lerp(a, b, t));
+        }
+      }
+      normalizeDynamicRange();
+      const fromMixer = sanitizeMixer(tr.from.mixer), toMixer = sanitizeMixer(tr.to.mixer);
+      for (const key of Object.keys(TRACK_DEFS)) {
+        for (const field of ["level","duration","fadeIn","fadeOut"]) state.mixer[key][field] = lerp(fromMixer[key][field], toMixer[key][field], t);
+        state.mixer[key].mute = t < .5 ? fromMixer[key].mute : toMixer[key].mute;
+        state.mixer[key].solo = t < .5 ? fromMixer[key].solo : toMixer[key].solo;
+      }
+      state.systems = interpolateSystems(tr.from.systems, tr.to.systems, t);
+      updateOutputs();
+      updateAudioParameters();
+      updateMixerAudio(false, false);
+      requestVisual(true);
+      const fromName = state.arrangement.scenes[tr.fromIndex]?.name || "Scene";
+      const toName = state.arrangement.scenes[tr.toIndex]?.name || "Scene";
+      els.pieceName.textContent = `${fromName} → ${toName}`;
+      els.pieceMeta.textContent = `Crossfade ${Math.round(t * 100)}% · ${formatClock(Math.max(0, tr.duration * (1 - t)))} remaining`;
+
+      if (t >= 1) {
+        applySettings(tr.to, { skipArrangement: true, skipAutosave: true, skipRestart: true, silent: true });
+        state.sceneTransition = null;
+        state.arrangement.sceneTransition = null;
+        state.arrangement.activeIndex = tr.toIndex;
+        state.arrangement.phase = "hold";
+        state.arrangement.phaseStartedAt = now;
+        applyMixerEnvelopes();
+        renderArrangementUI();
+        setStatus(`Now playing “${state.arrangement.scenes[tr.toIndex]?.name || "scene"}”`);
+      }
+    }
+    function updateArrangementPlayback(now = performance.now() / 1000) {
+      if (!state.arrangement.running || !state.arrangement.scenes.length) return;
+      if (state.sceneTransition) {
+        updateTransitionState(now, state.sceneTransition);
+        return;
+      }
+      const index = state.arrangement.activeIndex;
+      const scene = state.arrangement.scenes[index];
+      if (!scene) return stopArrangement(false);
+      const elapsed = now - state.arrangement.phaseStartedAt;
+      els.arrangementProgressBar.style.width = `${clamp(elapsed / Math.max(1, scene.duration), 0, 1) * 100}%`;
+      if (now - state.arrangement.lastUiAt > .25) {
+        state.arrangement.lastUiAt = now;
+        els.arrangementStatus.textContent = `Scene ${index + 1}/${state.arrangement.scenes.length} · ${scene.name} · ${formatClock(Math.max(0, scene.duration - elapsed))} until transition`;
+      }
+      if (elapsed < scene.duration) return;
+      let nextIndex = index + 1;
+      if (nextIndex >= state.arrangement.scenes.length) {
+        if (state.arrangement.loop) nextIndex = 0;
+        else {
+          setStatus("Arrangement complete");
+          stopArrangement(true);
+          return;
+        }
+      }
+      beginSceneTransition(now, index, nextIndex);
+    }
+    // ---------------------------------------------------------------------
     // Composition generation
     // ---------------------------------------------------------------------
     function orbitFeatures(c, count, seedPhase = 0) {
@@ -493,7 +1282,7 @@
       return systems;
     }
 
-    function generateComposition(seedText = els.seed.value.trim() || "dendrite") {
+    function generateComposition(seedText = els.seed.value.trim() || "dendrite", options = {}) {
       state.seed = seedText;
       state.seedNumber = hashSeed(seedText);
       const rng = mulberry32(state.seedNumber);
@@ -546,8 +1335,9 @@
       document.documentElement.style.setProperty("--accent", `hsl(${Math.round(c0.color.coolHue * 360)} 92% 72%)`);
       document.documentElement.style.setProperty("--accent-2", `hsl(${Math.round(c0.color.warmHue * 360)} 92% 72%)`);
 
-      if (state.playing) restartScheduleSafely();
+      if (state.playing && !options.skipRestart) restartScheduleSafely();
       requestVisual(true);
+      if (!options.skipAutosave) scheduleAutoSave();
     }
 
     function randomizeSeed() {
@@ -583,20 +1373,27 @@
       const filter = new Tone.Filter({ type: "lowpass", frequency: 1200, Q: 1.2, rolloff: -24 }).connect(delay);
       const dry = new Tone.Gain(.48).connect(master);
       filter.connect(dry);
+      const trackGains = {
+        drone: new Tone.Gain(1).connect(filter),
+        haze: new Tone.Gain(1).connect(filter),
+        bass: new Tone.Gain(1).connect(filter),
+        melody: new Tone.Gain(1).connect(delay),
+        noise: new Tone.Gain(1).connect(reverb)
+      };
       const lfo = new Tone.LFO({ frequency: .035, min: 240, max: 2600, phase: 180 }).start();
       lfo.connect(filter.frequency);
 
       const drone = new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: "sine" },
-        envelope: { attack: 5.5, decay: 3, sustain: .78, release: 9 }
-      }).connect(filter);
+        envelope: { attack: state.mixer.drone.fadeIn, decay: 3, sustain: .78, release: state.mixer.drone.fadeOut }
+      }).connect(trackGains.drone);
       drone.maxPolyphony = 12;
       drone.volume.value = -11;
 
       const haze = new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: "triangle" },
-        envelope: { attack: 2.5, decay: 4, sustain: .3, release: 10 }
-      }).connect(filter);
+        envelope: { attack: state.mixer.haze.fadeIn, decay: 4, sustain: .3, release: state.mixer.haze.fadeOut }
+      }).connect(trackGains.haze);
       haze.maxPolyphony = 10;
       haze.volume.value = -19;
 
@@ -605,31 +1402,32 @@
         modulationIndex: 2.2,
         oscillator: { type: "sine" },
         modulation: { type: "sine" },
-        envelope: { attack: .06, decay: 1.4, sustain: .06, release: 4.5 },
+        envelope: { attack: state.mixer.melody.fadeIn, decay: 1.4, sustain: .06, release: state.mixer.melody.fadeOut },
         modulationEnvelope: { attack: .2, decay: 1.2, sustain: .05, release: 2 }
-      }).connect(delay);
+      }).connect(trackGains.melody);
       melody.maxPolyphony = 12;
       melody.volume.value = -15;
 
       const bass = new Tone.MonoSynth({
         oscillator: { type: "sine" },
         filter: { type: "lowpass", Q: 1, rolloff: -24 },
-        envelope: { attack: 1.5, decay: 2, sustain: .55, release: 6 },
+        envelope: { attack: state.mixer.bass.fadeIn, decay: 2, sustain: .55, release: state.mixer.bass.fadeOut },
         filterEnvelope: { attack: 1, decay: 2, sustain: .3, release: 5, baseFrequency: 90, octaves: 2.2 }
-      }).connect(filter);
+      }).connect(trackGains.bass);
       bass.volume.value = -9;
 
       const noise = new Tone.NoiseSynth({
         noise: { type: "pink" },
-        envelope: { attack: 1.8, decay: 3.5, sustain: 0, release: 3 }
-      }).connect(reverb);
+        envelope: { attack: state.mixer.noise.fadeIn, decay: 3.5, sustain: 0, release: state.mixer.noise.fadeOut }
+      }).connect(trackGains.noise);
       noise.volume.value = -27;
 
       const fft = new Tone.FFT({ size: 64, smoothing: .85, normalRange: true });
       safetyGain.connect(fft);
 
-      state.audio = { limiter, safetyGain, master, reverb, delay, filter, dry, lfo, drone, haze, melody, bass, noise, fft };
+      state.audio = { limiter, safetyGain, master, reverb, delay, filter, dry, trackGains, lfo, drone, haze, melody, bass, noise, fft };
       state.audioReady = true;
+      updateMixerAudio(true);
       els.audioChip.textContent = "Audio ready";
     }
 
@@ -678,6 +1476,36 @@
       }
     }
 
+    function setEnvelopeSafely(instrument, attack, release, extra = {}) {
+      if (!instrument || typeof instrument.set !== "function") return;
+      try { instrument.set({ envelope: { attack, release, ...extra } }); }
+      catch (error) { console.warn("Envelope update was not supported by this Tone.js voice", error); }
+    }
+    function applyMixerEnvelopes() {
+      if (!state.audioReady) return;
+      setEnvelopeSafely(state.audio.drone, state.mixer.drone.fadeIn, state.mixer.drone.fadeOut, { decay: 3, sustain: .78 });
+      setEnvelopeSafely(state.audio.haze, state.mixer.haze.fadeIn, state.mixer.haze.fadeOut, { decay: 4, sustain: .3 });
+      setEnvelopeSafely(state.audio.melody, state.mixer.melody.fadeIn, state.mixer.melody.fadeOut, { decay: 1.4, sustain: .06 });
+      setEnvelopeSafely(state.audio.bass, state.mixer.bass.fadeIn, state.mixer.bass.fadeOut, { decay: 2, sustain: .55 });
+      setEnvelopeSafely(state.audio.noise, state.mixer.noise.fadeIn, state.mixer.noise.fadeOut, { decay: 3.5, sustain: 0 });
+    }
+    function updateMixerAudio(immediate = false, updateEnvelopes = true) {
+      if (!state.audioReady || !state.audio?.trackGains) return;
+      const anySolo = Object.values(state.mixer).some(track => track.solo);
+      for (const key of Object.keys(TRACK_DEFS)) {
+        const mix = state.mixer[key];
+        const silenced = mix.mute || (anySolo && !mix.solo);
+        const target = silenced ? 0 : dbToGain(mix.level);
+        smoothParam(state.audio.trackGains[key].gain, target, immediate ? .01 : .08);
+      }
+      if (updateEnvelopes) applyMixerEnvelopes();
+    }
+    function scaledDuration(value, track) {
+      if (!window.Tone) return value;
+      try { return Math.max(.02, Tone.Time(value).toSeconds() * state.mixer[track].duration); }
+      catch { return value; }
+    }
+
     function restartScheduleSafely() {
       if (!state.audioReady || !state.playing) return;
       if (state.rebuildTimer) clearTimeout(state.rebuildTimer);
@@ -716,35 +1544,53 @@
       T.timeSignature = [4,4];
       if (restart) { T.stop(); T.position = 0; }
 
-      const c = state.composition;
       const a = state.audio;
 
-      // Evolving lower and upper drone layers.
+      // Every callback reads the current scene layers. During an arrangement
+      // transition both compositions are active with equal-power weights, so
+      // the transport never needs to stop or jump between imported systems.
       state.scheduleIds.push(T.scheduleRepeat((time) => {
         state.droneCycle = (state.droneCycle || 0) + 1;
-        const notes = state.droneCycle % 2 ? c.drone.slice().reverse() : c.drone;
-        a.drone.triggerAttackRelease(notes, "6m", time, safeVelocity(.45));
-        notes.forEach((n, i) => emitNoteVisual(n, .32, i, 8));
+        for (const layer of getPlaybackLayers()) {
+          const c = layer.composition;
+          if (!c?.drone?.length) continue;
+          const notes = state.droneCycle % 2 ? c.drone.slice().reverse() : c.drone;
+          const velocity = clamp(safeVelocity(.45) * layer.gain, .0001, 1);
+          a.drone.triggerAttackRelease(notes, scaledDuration("6m", "drone"), time, velocity);
+          notes.forEach((n, i) => emitNoteVisual(n, .32 * layer.gain, i, 8));
+        }
       }, "4m", 0));
 
       state.scheduleIds.push(T.scheduleRepeat((time) => {
-        a.haze.triggerAttackRelease(c.upperDrone, "3m", time, safeVelocity(.2));
+        for (const layer of getPlaybackLayers()) {
+          const c = layer.composition;
+          if (!c?.upperDrone?.length) continue;
+          a.haze.triggerAttackRelease(c.upperDrone, scaledDuration("3m", "haze"), time, clamp(safeVelocity(.2) * layer.gain, .0001, 1));
+        }
       }, "4m", "2m"));
 
       state.scheduleIds.push(T.scheduleRepeat((time) => {
-        const note = (state.transportStep / 16) % 2 < 1 ? c.bass : c.altBass;
-        a.bass.triggerAttackRelease(note, "2m", time, safeVelocity(.45));
+        for (const layer of getPlaybackLayers()) {
+          const c = layer.composition;
+          if (!c) continue;
+          const note = (state.transportStep / 16) % 2 < 1 ? c.bass : c.altBass;
+          if (note) a.bass.triggerAttackRelease(note, scaledDuration("2m", "bass"), time, clamp(safeVelocity(.45) * layer.gain, .0001, 1));
+        }
       }, "2m", 0));
 
       state.scheduleIds.push(T.scheduleRepeat((time) => {
-        const step = c.melody[state.transportStep % c.melody.length];
-        if (step.active) {
-          const brightness = controlValue("brightness");
-          const vel = clamp(step.velocity * (.65 + brightness * .55), .08, .98);
-          a.melody.triggerAttackRelease(step.note, step.duration, time, safeVelocity(vel));
-          Tone.getDraw().schedule(() => emitNoteVisual(step.note, vel, step.systemIndex, 3.2), time);
+        for (const layer of getPlaybackLayers()) {
+          const c = layer.composition;
+          if (!c?.melody?.length) continue;
+          const step = c.melody[state.transportStep % c.melody.length];
+          if (step?.active) {
+            const brightness = controlValue("brightness");
+            const vel = clamp(step.velocity * (.65 + brightness * .55) * layer.gain, .001, .98);
+            a.melody.triggerAttackRelease(step.note, scaledDuration(step.duration, "melody"), time, vel);
+            Tone.getDraw().schedule(() => emitNoteVisual(step.note, vel, step.systemIndex, 3.2), time);
+          }
         }
-        if (state.transportStep % 16 === 12 && Math.random() < .34) a.noise.triggerAttackRelease("2n", time, safeVelocity(.09));
+        if (state.transportStep % 16 === 12 && Math.random() < .34) a.noise.triggerAttackRelease(scaledDuration("2n", "noise"), time, safeVelocity(.09));
         state.transportStep++;
       }, "8n", 0));
 
@@ -771,6 +1617,7 @@
           rebuildSchedule(true);
           fadeOutput(1, .22);
         } else {
+          if (state.arrangement.running) stopArrangement(false);
           state.playing = false;
           if (state.rebuildTimer) { clearTimeout(state.rebuildTimer); state.rebuildTimer = null; }
           fadeOutput(0, .09);
@@ -880,6 +1727,39 @@
       };
     `;
 
+    function updateVisualToggleUI() {
+      const enabled = state.visualsEnabled;
+      document.body.classList.toggle("visuals-off", !enabled);
+      els.visualToggle.classList.toggle("paused", !enabled);
+      els.visualToggle.setAttribute("aria-pressed", String(enabled));
+      els.visualToggle.textContent = enabled ? "◉ Visuals on" : "○ Visuals off";
+      els.visualToggle.title = enabled
+        ? "Pause visualization to reduce CPU/GPU use"
+        : "Resume the Julia field visualization";
+      if (!enabled) els.renderChip.textContent = "Visuals paused";
+    }
+
+    function setVisualsEnabled(enabled, { persist = true } = {}) {
+      state.visualsEnabled = Boolean(enabled);
+      if (!state.visualsEnabled) {
+        if (state.visualWorker) state.visualWorker.terminate();
+        state.visualWorker = null;
+        state.workerBusy = false;
+        state.workerFps = 0;
+      } else {
+        state.lastFrame = performance.now();
+        state.nextRenderAt = 0;
+        state.workerFrames = 0;
+        state.lastWorkerFpsAt = performance.now();
+        if (!state.visualWorker) initWorker();
+        requestVisual(true);
+      }
+      updateVisualToggleUI();
+      if (persist) {
+        try { localStorage.setItem(VISUALS_STORAGE_KEY, state.visualsEnabled ? "1" : "0"); } catch (_) {}
+      }
+    }
+
     function initWorker() {
       const blob = new Blob([workerSource], { type: "text/javascript" });
       state.visualWorker = new Worker(URL.createObjectURL(blob));
@@ -902,7 +1782,7 @@
     }
 
     function requestVisual(force = false) {
-      if (!state.visualWorker || !state.systems.length || state.workerBusy) return;
+      if (!state.visualsEnabled || !state.visualWorker || !state.systems.length || state.workerBusy) return;
       const now = performance.now();
       const targetInterval = state.width < 700 ? 105 : 76;
       if (!force && now < state.nextRenderAt) return;
@@ -1028,23 +1908,27 @@
     function frame(nowMs) {
       const dt = Math.min(.05, (nowMs - state.lastFrame) / 1000 || .016);
       state.lastFrame = nowMs;
-      state.visualTime += dt;
-      requestVisual();
-      const energy = getAudioEnergy();
+      updateArrangementPlayback(nowMs / 1000);
 
-      ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
-      ctx.fillStyle = "#05060c"; ctx.fillRect(0,0,state.width,state.height);
-      if (state.fractalReady) {
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = "high";
-        const breathe = 1 + Math.sin(state.visualTime * .17) * .006 * controlValue("motion");
-        const dw = state.width * breathe, dh = state.height * breathe;
-        ctx.drawImage(fractalCanvas, (state.width-dw)/2, (state.height-dh)/2, dw, dh);
+      if (state.visualsEnabled) {
+        state.visualTime += dt;
+        requestVisual();
+        const energy = getAudioEnergy();
+
+        ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
+        ctx.fillStyle = "#05060c"; ctx.fillRect(0,0,state.width,state.height);
+        if (state.fractalReady) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = "high";
+          const breathe = 1 + Math.sin(state.visualTime * .17) * .006 * controlValue("motion");
+          const dw = state.width * breathe, dh = state.height * breathe;
+          ctx.drawImage(fractalCanvas, (state.width-dw)/2, (state.height-dh)/2, dw, dh);
+        }
+        drawOverlay(state.visualTime, energy);
+
+        state.pointer.strength *= Math.pow(.02, dt);
+        if (state.pointer.strength < .001) state.pointer.active = false;
       }
-      drawOverlay(state.visualTime, energy);
-
-      state.pointer.strength *= Math.pow(.02, dt);
-      if (state.pointer.strength < .001) state.pointer.active = false;
       requestAnimationFrame(frame);
     }
 
@@ -1060,28 +1944,123 @@
     // Events
     // ---------------------------------------------------------------------
     els.play.addEventListener("click", togglePlayback);
-    els.generate.addEventListener("click", () => generateComposition());
+    els.visualToggle.addEventListener("click", () => setVisualsEnabled(!state.visualsEnabled));
+    els.generate.addEventListener("click", () => { if (state.arrangement.running) stopArrangement(false); generateComposition(); });
     els.save.addEventListener("click", savePng);
     els.collapse.addEventListener("click", () => {
       els.panel.classList.toggle("collapsed");
       els.collapse.textContent = els.panel.classList.contains("collapsed") ? "⌃" : "⌄";
     });
-    els.seed.addEventListener("keydown", (e) => { if (e.key === "Enter") generateComposition(); });
+    els.seed.addEventListener("keydown", (e) => { if (e.key === "Enter") { if (state.arrangement.running) stopArrangement(false); generateComposition(); } });
 
     ["tempo","density","drift","gravity","reverb","brightness","motion"].forEach(id => {
-      els[id].addEventListener("input", () => { updateOutputs(); updateAudioParameters(); requestVisual(true); });
+      els[id].addEventListener("input", () => { updateOutputs(); updateAudioParameters(); requestVisual(true); scheduleAutoSave(); });
     });
     ["dynamicMin","dynamicMax"].forEach(id => {
       els[id].addEventListener("input", () => {
         normalizeDynamicRange(id);
         updateOutputs();
         updateAudioParameters();
+        scheduleAutoSave();
       });
     });
-    els.systems.addEventListener("input", updateOutputs);
-    els.systems.addEventListener("change", () => generateComposition());
-    els.key.addEventListener("change", () => generateComposition());
-    els.scale.addEventListener("change", () => generateComposition());
+    els.systems.addEventListener("input", () => { updateOutputs(); scheduleAutoSave(); });
+    els.systems.addEventListener("change", () => { if (state.arrangement.running) stopArrangement(false); generateComposition(); });
+    els.key.addEventListener("change", () => { if (state.arrangement.running) stopArrangement(false); generateComposition(); });
+    els.scale.addEventListener("change", () => { if (state.arrangement.running) stopArrangement(false); generateComposition(); });
+
+    els.savePreset.addEventListener("click", savePresetToLibrary);
+    els.loadPreset.addEventListener("click", loadSelectedPreset);
+    els.deletePreset.addEventListener("click", deleteSelectedPreset);
+    els.presetSelect.addEventListener("change", () => {
+      const preset = state.presets.find(p => p.id === els.presetSelect.value);
+      if (preset) els.presetName.value = preset.name;
+    });
+    els.exportSettings.addEventListener("click", exportSettingsJson);
+    els.mixerExport.addEventListener("click", exportSettingsJson);
+    [els.importSettings, els.mixerImport].forEach(button => button.addEventListener("click", () => els.settingsFile.click()));
+    els.settingsFile.addEventListener("change", () => importSettingsFile(els.settingsFile.files?.[0]));
+    els.arrangementPlay.addEventListener("click", toggleArrangementPlayback);
+    els.arrangementAddCurrent.addEventListener("click", addCurrentToArrangement);
+    els.arrangementAddPreset.addEventListener("click", addSelectedPresetToArrangement);
+    els.arrangementImport.addEventListener("click", () => els.arrangementFile.click());
+    els.arrangementExport.addEventListener("click", exportArrangementJson);
+    els.arrangementFile.addEventListener("change", () => importArrangementFiles(els.arrangementFile.files));
+    els.arrangementLoop.addEventListener("change", () => {
+      state.arrangement.loop = els.arrangementLoop.checked;
+      renderArrangementUI();
+      scheduleAutoSave();
+    });
+    els.arrangementClear.addEventListener("click", () => {
+      if (state.arrangement.running) stopArrangement(false);
+      state.arrangement.scenes = [];
+      state.arrangement.activeIndex = -1;
+      renderArrangementUI();
+      scheduleAutoSave();
+      setStatus("Arrangement timeline cleared");
+    });
+    els.arrangerCollapse.addEventListener("click", () => {
+      els.arranger.classList.toggle("collapsed");
+      els.arrangerCollapse.textContent = els.arranger.classList.contains("collapsed") ? "›" : "‹";
+    });
+    els.sceneList.addEventListener("input", (event) => {
+      const input = event.target.closest("[data-scene-field]");
+      if (!input) return;
+      const section = input.closest("[data-scene-index]");
+      const index = Number(section?.dataset.sceneIndex);
+      const field = input.dataset.sceneField;
+      const scene = state.arrangement.scenes[index];
+      if (!scene || !["duration","transition"].includes(field)) return;
+      const limits = field === "duration" ? [5,3600] : [0,300];
+      scene[field] = clamp(Number(input.value) || limits[0], limits[0], limits[1]);
+      const output = input.parentElement?.querySelector("output");
+      if (output) output.value = formatClock(scene[field]);
+      els.arrangementSummary.textContent = `${state.arrangement.scenes.length} scene${state.arrangement.scenes.length === 1 ? "" : "s"} · ${formatClock(arrangementDuration())}`;
+      scheduleAutoSave();
+    });
+    els.sceneList.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-scene-action]");
+      if (!button) return;
+      const section = button.closest("[data-scene-index]");
+      const index = Number(section?.dataset.sceneIndex);
+      const action = button.dataset.sceneAction;
+      const scenes = state.arrangement.scenes;
+      if (!scenes[index]) return;
+      if (state.arrangement.running) stopArrangement(false);
+      if (action === "up" && index > 0) [scenes[index - 1], scenes[index]] = [scenes[index], scenes[index - 1]];
+      else if (action === "down" && index < scenes.length - 1) [scenes[index + 1], scenes[index]] = [scenes[index], scenes[index + 1]];
+      else if (action === "remove") scenes.splice(index, 1);
+      else if (action === "load") applySettings(scenes[index].settings, { skipArrangement: true, message: `Loaded scene “${scenes[index].name}”` });
+      renderArrangementUI();
+      scheduleAutoSave();
+    });
+
+    els.mixerReset.addEventListener("click", resetMixer);
+    els.mixerCollapse.addEventListener("click", () => {
+      els.mixer.classList.toggle("collapsed");
+      els.mixerCollapse.textContent = els.mixer.classList.contains("collapsed") ? "⌄" : "⌃";
+    });
+    els.trackList.addEventListener("input", (event) => {
+      const input = event.target.closest("[data-mixer-field]");
+      if (!input) return;
+      const track = input.dataset.track, field = input.dataset.mixerField;
+      if (!state.mixer[track] || !["level","duration","fadeIn","fadeOut"].includes(field)) return;
+      state.mixer[track][field] = Number(input.value);
+      updateMixerOutput(track, field);
+      updateMixerAudio();
+      if (field === "duration" && state.playing) restartScheduleSafely();
+      scheduleAutoSave();
+    });
+    els.trackList.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-track-action]");
+      if (!button) return;
+      const track = button.dataset.track, action = button.dataset.trackAction;
+      if (!state.mixer[track] || !["mute","solo"].includes(action)) return;
+      state.mixer[track][action] = !state.mixer[track][action];
+      renderMixerUI();
+      updateMixerAudio();
+      scheduleAutoSave();
+    });
 
     els.canvas.addEventListener("pointerdown", (e) => {
       state.pointer.x = e.clientX / state.width; state.pointer.y = e.clientY / state.height;
@@ -1101,8 +2080,9 @@
     window.addEventListener("keydown", (e) => {
       if (e.target.matches("input,select")) return;
       if (e.code === "Space") { e.preventDefault(); togglePlayback(); }
-      if (e.key.toLowerCase() === "r") randomizeSeed();
-      if (e.key.toLowerCase() === "g") generateComposition();
+      if (e.key.toLowerCase() === "r") { if (state.arrangement.running) stopArrangement(false); randomizeSeed(); }
+      if (e.key.toLowerCase() === "g") { if (state.arrangement.running) stopArrangement(false); generateComposition(); }
+      if (e.key.toLowerCase() === "v") setVisualsEnabled(!state.visualsEnabled);
     });
 
     // Auto-adjust fractal resolution if the renderer is struggling.
@@ -1113,10 +2093,16 @@
     }, 2500);
 
     // Bootstrap.
+    state.presets = readPresetLibrary();
+    refreshPresetSelect();
+    renderMixerUI();
+    renderArrangementUI();
     updateOutputs();
-    initWorker();
+    try { state.visualsEnabled = localStorage.getItem(VISUALS_STORAGE_KEY) !== "0"; } catch (_) { state.visualsEnabled = true; }
+    if (state.visualsEnabled) initWorker();
+    updateVisualToggleUI();
     resize();
-    generateComposition();
+    if (!loadLastSettings()) generateComposition();
     requestAnimationFrame(frame);
   })();
   </script>
