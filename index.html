@@ -1,0 +1,1005 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#080a12" />
+  <title>Julia Drone Field — Generative Composer</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080a12;
+      --panel: rgba(10, 13, 25, .72);
+      --panel-strong: rgba(10, 13, 25, .9);
+      --line: rgba(255,255,255,.12);
+      --text: #f6f7ff;
+      --muted: #a7acc4;
+      --accent: #73e6ff;
+      --accent-2: #ff8bd8;
+      --danger: #ff6e83;
+      --shadow: 0 20px 80px rgba(0,0,0,.45);
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: var(--bg); }
+    body {
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      letter-spacing: .01em;
+    }
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    canvas { display: block; }
+
+    #stage { position: fixed; inset: 0; width: 100%; height: 100%; background: #05060c; }
+    #veil {
+      position: fixed; inset: 0; pointer-events: none;
+      background:
+        radial-gradient(circle at 50% 50%, transparent 20%, rgba(0,0,0,.15) 72%, rgba(0,0,0,.7) 120%),
+        linear-gradient(180deg, rgba(5,6,12,.05), rgba(5,6,12,.28));
+      mix-blend-mode: multiply;
+    }
+    #grain {
+      position: fixed; inset: -50%; width: 200%; height: 200%; pointer-events: none; opacity: .055;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
+      animation: grain 8s steps(10) infinite;
+    }
+    @keyframes grain {
+      0%,100% { transform: translate(0,0); }
+      10% { transform: translate(-3%,-5%); }
+      20% { transform: translate(-8%,2%); }
+      30% { transform: translate(4%,-8%); }
+      40% { transform: translate(-2%,9%); }
+      50% { transform: translate(-9%,4%); }
+      60% { transform: translate(8%,0); }
+      70% { transform: translate(0,8%); }
+      80% { transform: translate(3%,3%); }
+      90% { transform: translate(-5%,-2%); }
+    }
+
+    header {
+      position: fixed; left: 22px; right: 22px; top: max(18px, env(safe-area-inset-top));
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 18px;
+      pointer-events: none;
+    }
+    .brand { text-shadow: 0 3px 20px rgba(0,0,0,.5); }
+    .eyebrow { font-size: 10px; font-weight: 750; letter-spacing: .26em; text-transform: uppercase; color: var(--accent); opacity: .9; }
+    h1 { margin: 5px 0 0; font-size: clamp(24px, 3vw, 44px); line-height: .94; letter-spacing: -.055em; font-weight: 780; }
+    #subtitle { margin-top: 8px; color: rgba(255,255,255,.62); font-size: 12px; max-width: 540px; }
+    .status-stack { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .chip {
+      border: 1px solid var(--line); background: rgba(7,9,18,.56); backdrop-filter: blur(16px);
+      border-radius: 999px; padding: 7px 10px; font-size: 10px; letter-spacing: .09em; text-transform: uppercase;
+      color: rgba(255,255,255,.72); box-shadow: 0 8px 28px rgba(0,0,0,.18);
+    }
+    .chip.live { color: #d9ffef; border-color: rgba(102,255,187,.38); background: rgba(16,76,54,.36); }
+
+    #panel {
+      position: fixed; left: 18px; bottom: max(18px, env(safe-area-inset-bottom)); width: min(430px, calc(100vw - 36px));
+      border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
+      background: var(--panel); backdrop-filter: blur(25px) saturate(130%); box-shadow: var(--shadow);
+      transition: transform .35s ease, opacity .35s ease;
+    }
+    #panel.collapsed { transform: translateY(calc(100% - 58px)); }
+    .panel-head {
+      min-height: 57px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 11px 12px 11px 15px; border-bottom: 1px solid var(--line);
+    }
+    .transport { display: flex; gap: 8px; align-items: center; }
+    .icon-button, .primary, .secondary {
+      appearance: none; border: 1px solid var(--line); cursor: pointer; transition: .18s ease;
+      background: rgba(255,255,255,.055); box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+    }
+    .icon-button:hover, .secondary:hover { background: rgba(255,255,255,.11); transform: translateY(-1px); }
+    .icon-button:active, .secondary:active, .primary:active { transform: translateY(1px); }
+    .icon-button { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; }
+    .primary {
+      height: 36px; border-radius: 11px; padding: 0 15px; font-size: 11px; font-weight: 760; letter-spacing: .08em; text-transform: uppercase;
+      border-color: rgba(126,234,255,.35); background: linear-gradient(135deg, rgba(61,201,232,.36), rgba(236,97,203,.26));
+    }
+    .primary:hover { filter: brightness(1.15); transform: translateY(-1px); }
+    .primary.playing { border-color: rgba(255,120,150,.55); background: linear-gradient(135deg, rgba(255,100,130,.42), rgba(180,73,255,.3)); }
+    .secondary { height: 34px; border-radius: 10px; padding: 0 12px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+    .now { min-width: 0; text-align: right; }
+    #pieceName { font-size: 12px; font-weight: 720; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px; }
+    #pieceMeta { margin-top: 2px; color: var(--muted); font-size: 10px; }
+
+    .panel-body { padding: 13px 14px 14px; max-height: min(66vh, 600px); overflow: auto; scrollbar-width: thin; }
+    .actions { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; margin-bottom: 12px; }
+    .seed-wrap { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 10px; background: rgba(0,0,0,.17); min-width: 0; }
+    .seed-wrap span { padding-left: 10px; color: var(--muted); font-size: 9px; text-transform: uppercase; letter-spacing: .14em; }
+    #seed { width: 100%; min-width: 0; border: 0; outline: 0; color: var(--text); background: transparent; padding: 8px 10px; font-size: 11px; }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 12px; }
+    .control { min-width: 0; }
+    .control.wide { grid-column: 1 / -1; }
+    .label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+    label { color: rgba(255,255,255,.74); font-size: 9px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
+    output { color: var(--accent); font-size: 9px; font-variant-numeric: tabular-nums; }
+    select {
+      width: 100%; height: 32px; border: 1px solid var(--line); border-radius: 9px; outline: 0;
+      color: var(--text); background: rgba(0,0,0,.26); padding: 0 9px; font-size: 11px;
+    }
+    input[type="range"] { width: 100%; height: 18px; margin: 0; appearance: none; background: transparent; cursor: pointer; }
+    input[type="range"]::-webkit-slider-runnable-track { height: 3px; border-radius: 999px; background: linear-gradient(90deg, rgba(115,230,255,.8), rgba(255,139,216,.8)); }
+    input[type="range"]::-webkit-slider-thumb { appearance: none; width: 13px; height: 13px; margin-top: -5px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 4px rgba(115,230,255,.14), 0 2px 8px rgba(0,0,0,.4); }
+    input[type="range"]::-moz-range-track { height: 3px; border-radius: 999px; background: linear-gradient(90deg, rgba(115,230,255,.8), rgba(255,139,216,.8)); }
+    input[type="range"]::-moz-range-thumb { width: 13px; height: 13px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 0 0 4px rgba(115,230,255,.14); }
+    .hint { margin-top: 11px; color: rgba(255,255,255,.43); font-size: 9px; line-height: 1.45; }
+
+    #legend {
+      position: fixed; right: 22px; bottom: max(21px, env(safe-area-inset-bottom));
+      color: rgba(255,255,255,.46); text-align: right; font-size: 9px; line-height: 1.6; letter-spacing: .09em; text-transform: uppercase;
+      text-shadow: 0 2px 10px #000; pointer-events: none;
+    }
+    #error {
+      position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 20; max-width: min(480px, calc(100vw - 36px));
+      border: 1px solid rgba(255,110,131,.35); border-radius: 14px; padding: 16px 18px; background: rgba(45,9,18,.92); color: #ffe7eb;
+      box-shadow: var(--shadow); display: none; font-size: 12px; line-height: 1.5;
+    }
+
+    @media (max-width: 700px) {
+      header { left: 16px; right: 16px; top: max(14px, env(safe-area-inset-top)); }
+      #subtitle { max-width: 260px; }
+      .status-stack .chip:nth-child(n+3) { display: none; }
+      #panel { left: 10px; width: calc(100vw - 20px); bottom: max(10px, env(safe-area-inset-bottom)); }
+      #legend { display: none; }
+      .panel-body { max-height: 58vh; }
+    }
+    @media (max-height: 650px) {
+      #subtitle { display: none; }
+      .panel-body { max-height: 52vh; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="stage" aria-label="Animated Julia field visualization"></canvas>
+  <div id="veil"></div>
+  <div id="grain"></div>
+
+  <header>
+    <div class="brand">
+      <div class="eyebrow">Generative Tone.js Instrument</div>
+      <h1>Julia Drone Field</h1>
+      <div id="subtitle">Dendrite geometry becomes harmony, breathing c-space becomes melody.</div>
+    </div>
+    <div class="status-stack">
+      <div class="chip" id="audioChip">Audio idle</div>
+      <div class="chip" id="renderChip">Field 0 fps</div>
+      <div class="chip" id="cChip">c = —</div>
+    </div>
+  </header>
+
+  <section id="panel" aria-label="Composer controls">
+    <div class="panel-head">
+      <div class="transport">
+        <button id="play" class="primary" type="button">▶ Start</button>
+        <button id="collapse" class="icon-button" type="button" aria-label="Collapse controls" title="Collapse controls">⌄</button>
+      </div>
+      <div class="now">
+        <div id="pieceName">Uninitialized field</div>
+        <div id="pieceMeta">Generate a composition</div>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div class="actions">
+        <div class="seed-wrap"><span>Seed</span><input id="seed" value="dendrite-001" spellcheck="false" /></div>
+        <button id="generate" class="secondary" type="button">Generate</button>
+        <button id="save" class="secondary" type="button">PNG</button>
+      </div>
+      <div class="grid">
+        <div class="control">
+          <div class="label-row"><label for="key">Root</label></div>
+          <select id="key">
+            <option value="auto">Auto</option><option>C</option><option>C#</option><option>D</option><option>D#</option>
+            <option>E</option><option>F</option><option>F#</option><option>G</option><option>G#</option><option>A</option><option>A#</option><option>B</option>
+          </select>
+        </div>
+        <div class="control">
+          <div class="label-row"><label for="scale">Scale</label></div>
+          <select id="scale">
+            <option value="auto">Auto</option><option value="aeolian">Aeolian</option><option value="dorian">Dorian</option>
+            <option value="lydian">Lydian</option><option value="phrygian">Phrygian</option><option value="pentatonic">Minor pentatonic</option>
+            <option value="whole">Whole tone</option><option value="harmonicMinor">Harmonic minor</option>
+          </select>
+        </div>
+
+        <div class="control wide">
+          <div class="label-row"><label for="tempo">Pulse</label><output id="tempoOut">54 bpm</output></div>
+          <input id="tempo" type="range" min="28" max="104" step="1" value="54" />
+        </div>
+        <div class="control">
+          <div class="label-row"><label for="systems">Systems</label><output id="systemsOut">5</output></div>
+          <input id="systems" type="range" min="2" max="8" step="1" value="5" />
+        </div>
+        <div class="control">
+          <div class="label-row"><label for="density">Melody density</label><output id="densityOut">44%</output></div>
+          <input id="density" type="range" min="0.08" max="0.95" step="0.01" value="0.44" />
+        </div>
+        <div class="control">
+          <div class="label-row"><label for="drift">C-space drift</label><output id="driftOut">0.014</output></div>
+          <input id="drift" type="range" min="0.002" max="0.032" step="0.001" value="0.014" />
+        </div>
+        <div class="control">
+          <div class="label-row"><label for="gravity">Field gravity</label><output id="gravityOut">68%</output></div>
+          <input id="gravity" type="range" min="0" max="1" step="0.01" value="0.68" />
+        </div>
+        <div class="control">
+          <div class="label-row"><label for="reverb">Space</label><output id="reverbOut">72%</output></div>
+          <input id="reverb" type="range" min="0" max="0.95" step="0.01" value="0.72" />
+        </div>
+        <div class="control">
+          <div class="label-row"><label for="brightness">Brightness</label><output id="brightnessOut">58%</output></div>
+          <input id="brightness" type="range" min="0.05" max="1" step="0.01" value="0.58" />
+        </div>
+        <div class="control wide">
+          <div class="label-row"><label for="motion">Breathing motion</label><output id="motionOut">61%</output></div>
+          <input id="motion" type="range" min="0" max="1" step="0.01" value="0.61" />
+        </div>
+      </div>
+      <div class="hint">Space: play/stop · R: new seed · G: regenerate · click the field to bend the attractor · audio begins only after user interaction.</div>
+    </div>
+  </section>
+
+  <div id="legend">Fractal frame = mixed Julia field<br />Orbit nodes = harmonic systems<br />Ring = central attractor</div>
+  <div id="error" role="alert"></div>
+
+  <script src="https://unpkg.com/tone@15.1.22/build/Tone.js"></script>
+  <script>
+  (() => {
+    "use strict";
+
+    // ---------------------------------------------------------------------
+    // Deterministic randomness and musical data
+    // ---------------------------------------------------------------------
+    const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+    const SCALES = {
+      aeolian: [0,2,3,5,7,8,10],
+      dorian: [0,2,3,5,7,9,10],
+      lydian: [0,2,4,6,7,9,11],
+      phrygian: [0,1,3,5,7,8,10],
+      pentatonic: [0,3,5,7,10],
+      whole: [0,2,4,6,8,10],
+      harmonicMinor: [0,2,3,5,7,8,11]
+    };
+    const SCALE_LABELS = {
+      aeolian: "Aeolian", dorian: "Dorian", lydian: "Lydian", phrygian: "Phrygian",
+      pentatonic: "minor pentatonic", whole: "whole tone", harmonicMinor: "harmonic minor"
+    };
+    const ADJECTIVES = ["Liminal","Violet","Tidal","Glass","Nocturnal","Solar","Oblique","Hollow","Radiant","Slow","Electric","Velvet"];
+    const NOUNS = ["Dendrite","Horizon","Filament","Arc","Bloom","Lattice","Current","Orbit","Signal","Field","Spiral","Veil"];
+
+    function xmur3(str) {
+      let h = 1779033703 ^ str.length;
+      for (let i = 0; i < str.length; i++) {
+        h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+        h = h << 13 | h >>> 19;
+      }
+      return function() {
+        h = Math.imul(h ^ (h >>> 16), 2246822507);
+        h = Math.imul(h ^ (h >>> 13), 3266489909);
+        return (h ^= h >>> 16) >>> 0;
+      };
+    }
+    function mulberry32(a) {
+      return function() {
+        let t = a += 0x6D2B79F5;
+        t = Math.imul(t ^ t >>> 15, t | 1);
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+    const hashSeed = (text) => xmur3(String(text))();
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const pick = (rng, list) => list[Math.floor(rng() * list.length)];
+    const rand = (rng, lo, hi) => lo + (hi - lo) * rng();
+    const chance = (rng, p) => rng() < p;
+    const mod = (n, m) => ((n % m) + m) % m;
+
+    function midiToNote(midi) {
+      const n = Math.round(midi);
+      return NOTE_NAMES[mod(n, 12)] + (Math.floor(n / 12) - 1);
+    }
+    function scaleMidi(rootPc, scale, degree, octave) {
+      const len = scale.length;
+      const octShift = Math.floor(degree / len);
+      const idx = mod(degree, len);
+      return 12 * (octave + 1 + octShift) + rootPc + scale[idx];
+    }
+
+    // ---------------------------------------------------------------------
+    // Julia parameter sampling — ported from the supplied Python recipes
+    // ---------------------------------------------------------------------
+    function inMainCardioid(re, im) {
+      const q = (re - 0.25) ** 2 + im * im;
+      return q * (q + (re - 0.25)) < 0.25 * im * im;
+    }
+    function inPeriod2Bulb(re, im) { return (re + 1) ** 2 + im * im < 0.0625; }
+    function mandelbrotEscape(re, im, maxIter = 120) {
+      let zr = 0, zi = 0;
+      for (let k = 0; k < maxIter; k++) {
+        if (zr * zr + zi * zi > 4) return k;
+        const nr = zr * zr - zi * zi + re;
+        zi = 2 * zr * zi + im;
+        zr = nr;
+      }
+      return maxIter;
+    }
+    function cLooksPromising(re, im) {
+      if (inMainCardioid(re, im) || inPeriod2Bulb(re, im)) return false;
+      return mandelbrotEscape(re, im, 120) >= 30;
+    }
+    function randomCCandidate(rng) {
+      const region = pick(rng, ["dendrite_arc","period2_edge","upper_dendrite","cardioid_edge"]);
+      if (region === "dendrite_arc") {
+        return { re: rand(rng, -0.80, -0.62), im: rand(rng, 0.20, 0.42) * (chance(rng,.5) ? -1 : 1), region };
+      }
+      if (region === "period2_edge") {
+        const theta = rand(rng, 0, Math.PI * 2), r = rand(rng, 0.245, 0.265);
+        return { re: -1 + r * Math.cos(theta), im: r * Math.sin(theta), region };
+      }
+      if (region === "upper_dendrite") {
+        return { re: rand(rng, -0.20, 0.10), im: rand(rng, 0.65, 0.90) * (chance(rng,.5) ? -1 : 1), region };
+      }
+      let theta = rand(rng, 0, Math.PI * 2);
+      if (theta < 0.3 || theta > Math.PI * 2 - 0.3) theta += 0.5;
+      const push = rand(rng, 1.005, 1.025);
+      return {
+        re: (0.5 * Math.cos(theta) - 0.25 * Math.cos(2 * theta)) * push,
+        im: (0.5 * Math.sin(theta) - 0.25 * Math.sin(2 * theta)) * push,
+        region
+      };
+    }
+    function sampleDendriteC(rng) {
+      for (let i = 0; i < 90; i++) {
+        const c = randomCCandidate(rng);
+        if (cLooksPromising(c.re, c.im)) return c;
+      }
+      return { re: -0.7, im: 0.27015, region: "fallback" };
+    }
+    function randomColorScheme(rng) {
+      const coolHue = rand(rng, 0.48, 0.82);
+      const warmHue = chance(rng, .72) ? rand(rng, 0, .16) : rand(rng, .84, 1);
+      return {
+        coolHue,
+        warmHue,
+        coolSat: rand(rng, .62, .92), warmSat: rand(rng, .75, 1),
+        coolVal: rand(rng, .54, .86), warmVal: rand(rng, .86, 1),
+        rExp: rand(rng, .5, .9), gExp: rand(rng, 1, 1.4),
+        hueOffset: rng(), hueRate: rand(rng, .018, .07), pulseRate: rand(rng, .05, .18), pulsePhase: rand(rng, 0, Math.PI * 2)
+      };
+    }
+    function breathPath(path, phase, amp, baseRe, baseIm) {
+      const th = Math.PI * 2 * phase, s = Math.sin(th), co = Math.cos(th);
+      if (path === "circle") return [baseRe + amp * co, baseIm + amp * s];
+      if (path === "horizontal") return [baseRe + amp * s, baseIm];
+      if (path === "vertical") return [baseRe, baseIm + amp * s];
+      if (path === "figure_eight") {
+        const d = 1 + s * s;
+        return [baseRe + amp * co / d, baseIm + amp * s * co / d];
+      }
+      if (path === "radial_pulse") return [baseRe * (1 + amp * s), baseIm * (1 + amp * s)];
+      return [baseRe, baseIm];
+    }
+
+    // ---------------------------------------------------------------------
+    // State and DOM
+    // ---------------------------------------------------------------------
+    const $ = (id) => document.getElementById(id);
+    const els = {
+      canvas: $("stage"), panel: $("panel"), play: $("play"), collapse: $("collapse"), generate: $("generate"), save: $("save"), seed: $("seed"),
+      key: $("key"), scale: $("scale"), tempo: $("tempo"), systems: $("systems"), density: $("density"), drift: $("drift"), gravity: $("gravity"),
+      reverb: $("reverb"), brightness: $("brightness"), motion: $("motion"), pieceName: $("pieceName"), pieceMeta: $("pieceMeta"),
+      audioChip: $("audioChip"), renderChip: $("renderChip"), cChip: $("cChip"), error: $("error")
+    };
+    const ctx = els.canvas.getContext("2d", { alpha: false, desynchronized: true });
+    const fractalCanvas = document.createElement("canvas");
+    const fractalCtx = fractalCanvas.getContext("2d", { alpha: false });
+
+    const state = {
+      seed: "dendrite-001", seedNumber: 0, rng: Math.random, systems: [], composition: null,
+      playing: false, audioReady: false, audio: null, scheduleIds: [],
+      width: 1, height: 1, dpr: 1, pointer: { x: .5, y: .5, active: false, strength: 0 },
+      visualWorker: null, workerBusy: false, workerFrames: 0, lastWorkerFpsAt: performance.now(), workerFps: 0,
+      fractalReady: false, visualTime: 0, lastFrame: performance.now(), recentNotes: [],
+      renderScale: 1, nextRenderAt: 0, fftData: new Float32Array(64), transportStep: 0
+    };
+
+    function controlValue(id) { return Number(els[id].value); }
+    function updateOutputs() {
+      $("tempoOut").value = `${Math.round(controlValue("tempo"))} bpm`;
+      $("systemsOut").value = `${Math.round(controlValue("systems"))}`;
+      $("densityOut").value = `${Math.round(controlValue("density") * 100)}%`;
+      $("driftOut").value = controlValue("drift").toFixed(3);
+      $("gravityOut").value = `${Math.round(controlValue("gravity") * 100)}%`;
+      $("reverbOut").value = `${Math.round(controlValue("reverb") * 100)}%`;
+      $("brightnessOut").value = `${Math.round(controlValue("brightness") * 100)}%`;
+      $("motionOut").value = `${Math.round(controlValue("motion") * 100)}%`;
+    }
+
+    // ---------------------------------------------------------------------
+    // Composition generation
+    // ---------------------------------------------------------------------
+    function orbitFeatures(c, count, seedPhase = 0) {
+      let zr = Math.cos(seedPhase) * .001, zi = Math.sin(seedPhase) * .001;
+      const out = [];
+      for (let i = 0; i < count; i++) {
+        const nr = zr * zr - zi * zi + c.re;
+        zi = 2 * zr * zi + c.im;
+        zr = nr;
+        const mag = Math.sqrt(zr * zr + zi * zi);
+        out.push({ zr, zi, mag, angle: Math.atan2(zi, zr), escaped: mag > 2 });
+        if (mag > 8 || !Number.isFinite(mag)) { zr = Math.sin(i * 1.73) * .01; zi = Math.cos(i * .91) * .01; }
+      }
+      return out;
+    }
+
+    function makeSystems(rng, count) {
+      const systems = [];
+      for (let i = 0; i < count; i++) {
+        const c = sampleDendriteC(rng);
+        const angle = Math.PI * 2 * i / count + rand(rng, -.25, .25);
+        const radius = rand(rng, .27, .44);
+        systems.push({
+          ...c, homeRe: c.re, homeIm: c.im,
+          x: .5 + Math.cos(angle) * radius,
+          y: .5 + Math.sin(angle) * radius,
+          orbitRadius: radius,
+          angle,
+          orbitRate: rand(rng, .015, .055) * (chance(rng,.5) ? -1 : 1),
+          mass: rand(rng, .7, 1.45), sigma: rand(rng, .16, .31),
+          path: pick(rng, ["circle","horizontal","vertical","figure_eight","radial_pulse"]),
+          breathRate: rand(rng, .025, .09), breathPhase: rng(),
+          color: randomColorScheme(rng),
+          noteEnergy: rand(rng, .3, 1)
+        });
+      }
+      return systems;
+    }
+
+    function generateComposition(seedText = els.seed.value.trim() || "dendrite") {
+      state.seed = seedText;
+      state.seedNumber = hashSeed(seedText);
+      const rng = mulberry32(state.seedNumber);
+      state.rng = rng;
+      state.systems = makeSystems(rng, Math.round(controlValue("systems")));
+
+      const autoRoot = Math.floor(rng() * 12);
+      const rootPc = els.key.value === "auto" ? autoRoot : NOTE_NAMES.indexOf(els.key.value);
+      const scaleNames = Object.keys(SCALES);
+      const scaleName = els.scale.value === "auto" ? pick(rng, scaleNames) : els.scale.value;
+      const scale = SCALES[scaleName];
+      const steps = 32;
+      const density = controlValue("density");
+      const melody = [];
+      let priorDegree = Math.floor(rng() * scale.length);
+
+      for (let i = 0; i < steps; i++) {
+        const sys = state.systems[i % state.systems.length];
+        const f = orbitFeatures(sys, 5, i * .31 + sys.angle)[4];
+        const angular = (f.angle + Math.PI) / (Math.PI * 2);
+        const rawDegree = Math.floor(angular * scale.length * 2) - Math.floor(scale.length / 2);
+        const continuity = chance(rng, .72) ? clamp(rawDegree, priorDegree - 2, priorDegree + 2) : rawDegree;
+        priorDegree = continuity;
+        const register = i % 8 === 7 && chance(rng,.35) ? 5 : 4;
+        const midi = scaleMidi(rootPc, scale, continuity, register);
+        const accent = i % 8 === 0 ? 1 : (i % 4 === 0 ? .82 : .62);
+        const probability = clamp(density * (0.62 + sys.noteEnergy * .45) * (i % 2 ? .86 : 1.12), .04, .98);
+        melody.push({
+          note: midiToNote(midi), midi, active: chance(rng, probability), velocity: clamp(accent * rand(rng, .45, .84), .18, .92),
+          duration: pick(rng, chance(rng,.22) ? ["4n","2n","2n."] : ["8n","4n","4n."]),
+          systemIndex: i % state.systems.length
+        });
+      }
+
+      // Low voicing follows system c-values, then spreads across octaves.
+      const chordDegrees = [0, 2, 4, 6].slice(0, clamp(3 + Math.round(rng() * 2), 3, 4));
+      const drone = chordDegrees.map((d, i) => midiToNote(scaleMidi(rootPc, scale, d, 1 + (i > 1 ? 1 : 0))));
+      const upperDrone = [0, 4, 8].map((d, i) => midiToNote(scaleMidi(rootPc, scale, d, 3 + (i === 2 ? 1 : 0))));
+      const bass = midiToNote(scaleMidi(rootPc, scale, 0, 1));
+      const altBass = midiToNote(scaleMidi(rootPc, scale, chance(rng,.5) ? 3 : 4, 1));
+      const name = `${pick(rng, ADJECTIVES)} ${pick(rng, NOUNS)} ${String(state.seedNumber % 997).padStart(3,"0")}`;
+
+      state.composition = { name, rootPc, root: NOTE_NAMES[rootPc], scaleName, scale, melody, drone, upperDrone, bass, altBass };
+      state.transportStep = 0;
+      state.recentNotes.length = 0;
+      els.pieceName.textContent = name;
+      els.pieceMeta.textContent = `${NOTE_NAMES[rootPc]} ${SCALE_LABELS[scaleName]} · ${state.systems.length} systems · ${Math.round(controlValue("tempo"))} bpm`;
+      const c0 = state.systems[0];
+      els.cChip.textContent = `c = ${c0.re >= 0 ? "+" : ""}${c0.re.toFixed(3)} ${c0.im >= 0 ? "+" : "−"} ${Math.abs(c0.im).toFixed(3)}i`;
+      document.documentElement.style.setProperty("--accent", `hsl(${Math.round(c0.color.coolHue * 360)} 92% 72%)`);
+      document.documentElement.style.setProperty("--accent-2", `hsl(${Math.round(c0.color.warmHue * 360)} 92% 72%)`);
+
+      if (state.playing) rebuildSchedule(true);
+      requestVisual(true);
+    }
+
+    function randomizeSeed() {
+      const bytes = new Uint32Array(2);
+      crypto.getRandomValues(bytes);
+      els.seed.value = `field-${bytes[0].toString(36)}-${bytes[1].toString(36).slice(0,4)}`;
+      generateComposition();
+    }
+
+    // ---------------------------------------------------------------------
+    // Tone.js audio engine
+    // ---------------------------------------------------------------------
+    function showError(message) {
+      els.error.textContent = message;
+      els.error.style.display = "block";
+      setTimeout(() => { els.error.style.display = "none"; }, 7000);
+    }
+
+    async function initAudio() {
+      if (state.audioReady) return;
+      if (!window.Tone) throw new Error("Tone.js could not be loaded. Check the network connection, then reload the page.");
+      await Tone.start();
+
+      const limiter = new Tone.Limiter(-1).toDestination();
+      const master = new Tone.Gain(0.7).connect(limiter);
+      const reverb = new Tone.Reverb({ decay: 10, preDelay: .08, wet: controlValue("reverb") }).connect(master);
+      const delay = new Tone.PingPongDelay({ delayTime: "8n.", feedback: .28, wet: .22 }).connect(reverb);
+      const filter = new Tone.Filter({ type: "lowpass", frequency: 1200, Q: 1.2, rolloff: -24 }).connect(delay);
+      const dry = new Tone.Gain(.48).connect(master);
+      filter.connect(dry);
+      const lfo = new Tone.LFO({ frequency: .035, min: 240, max: 2600, phase: 180 }).start();
+      lfo.connect(filter.frequency);
+
+      const drone = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "sine" },
+        envelope: { attack: 5.5, decay: 3, sustain: .78, release: 9 }
+      }).connect(filter);
+      drone.maxPolyphony = 12;
+      drone.volume.value = -11;
+
+      const haze = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "triangle" },
+        envelope: { attack: 2.5, decay: 4, sustain: .3, release: 10 }
+      }).connect(filter);
+      haze.maxPolyphony = 10;
+      haze.volume.value = -19;
+
+      const melody = new Tone.PolySynth(Tone.FMSynth, {
+        harmonicity: 1.25,
+        modulationIndex: 2.2,
+        oscillator: { type: "sine" },
+        modulation: { type: "sine" },
+        envelope: { attack: .06, decay: 1.4, sustain: .06, release: 4.5 },
+        modulationEnvelope: { attack: .2, decay: 1.2, sustain: .05, release: 2 }
+      }).connect(delay);
+      melody.maxPolyphony = 12;
+      melody.volume.value = -15;
+
+      const bass = new Tone.MonoSynth({
+        oscillator: { type: "sine" },
+        filter: { type: "lowpass", Q: 1, rolloff: -24 },
+        envelope: { attack: 1.5, decay: 2, sustain: .55, release: 6 },
+        filterEnvelope: { attack: 1, decay: 2, sustain: .3, release: 5, baseFrequency: 90, octaves: 2.2 }
+      }).connect(filter);
+      bass.volume.value = -9;
+
+      const noise = new Tone.NoiseSynth({
+        noise: { type: "pink" },
+        envelope: { attack: 1.8, decay: 3.5, sustain: 0, release: 3 }
+      }).connect(reverb);
+      noise.volume.value = -27;
+
+      const fft = new Tone.FFT({ size: 64, smoothing: .85, normalRange: true });
+      master.connect(fft);
+
+      state.audio = { limiter, master, reverb, delay, filter, dry, lfo, drone, haze, melody, bass, noise, fft };
+      state.audioReady = true;
+      els.audioChip.textContent = "Audio ready";
+    }
+
+    function clearSchedule() {
+      if (!window.Tone) return;
+      const transport = Tone.getTransport();
+      for (const id of state.scheduleIds) transport.clear(id);
+      state.scheduleIds.length = 0;
+      state.audio?.drone.releaseAll();
+      state.audio?.haze.releaseAll();
+      state.audio?.melody.releaseAll();
+      state.audio?.bass.triggerRelease();
+    }
+
+    function emitNoteVisual(note, velocity, systemIndex, duration = 2.5) {
+      const sys = state.systems[systemIndex % state.systems.length];
+      state.recentNotes.push({ note, velocity, systemIndex, born: performance.now() / 1000, duration, x: sys?.x ?? .5, y: sys?.y ?? .5 });
+      if (state.recentNotes.length > 36) state.recentNotes.shift();
+    }
+
+    function rebuildSchedule(restart = false) {
+      if (!state.audioReady || !state.composition) return;
+      const T = Tone.getTransport();
+      const wasStarted = T.state === "started";
+      clearSchedule();
+      T.bpm.value = controlValue("tempo");
+      T.timeSignature = [4,4];
+      if (restart) { T.stop(); T.position = 0; }
+
+      const c = state.composition;
+      const a = state.audio;
+
+      // Evolving lower and upper drone layers.
+      state.scheduleIds.push(T.scheduleRepeat((time) => {
+        state.droneCycle = (state.droneCycle || 0) + 1;
+        const notes = state.droneCycle % 2 ? c.drone.slice().reverse() : c.drone;
+        a.drone.triggerAttackRelease(notes, "6m", time, .45);
+        notes.forEach((n, i) => emitNoteVisual(n, .32, i, 8));
+      }, "4m", 0));
+
+      state.scheduleIds.push(T.scheduleRepeat((time) => {
+        a.haze.triggerAttackRelease(c.upperDrone, "3m", time, .2);
+      }, "4m", "2m"));
+
+      state.scheduleIds.push(T.scheduleRepeat((time) => {
+        const note = (state.transportStep / 16) % 2 < 1 ? c.bass : c.altBass;
+        a.bass.triggerAttackRelease(note, "2m", time, .45);
+      }, "2m", 0));
+
+      state.scheduleIds.push(T.scheduleRepeat((time) => {
+        const step = c.melody[state.transportStep % c.melody.length];
+        if (step.active) {
+          const brightness = controlValue("brightness");
+          const vel = clamp(step.velocity * (.65 + brightness * .55), .08, .98);
+          a.melody.triggerAttackRelease(step.note, step.duration, time, vel);
+          Tone.getDraw().schedule(() => emitNoteVisual(step.note, vel, step.systemIndex, 3.2), time);
+        }
+        if (state.transportStep % 16 === 12 && Math.random() < .34) a.noise.triggerAttackRelease("2n", time, .09);
+        state.transportStep++;
+      }, "8n", 0));
+
+      if (wasStarted || state.playing) T.start("+0.08");
+    }
+
+    async function togglePlayback() {
+      try {
+        await initAudio();
+        if (!state.composition) generateComposition();
+        const T = Tone.getTransport();
+        if (!state.playing) {
+          state.playing = true;
+          rebuildSchedule(true);
+          els.play.textContent = "■ Stop";
+          els.play.classList.add("playing");
+          els.audioChip.textContent = "Audio live";
+          els.audioChip.classList.add("live");
+        } else {
+          state.playing = false;
+          T.stop(); T.position = 0;
+          clearSchedule();
+          els.play.textContent = "▶ Start";
+          els.play.classList.remove("playing");
+          els.audioChip.textContent = "Audio ready";
+          els.audioChip.classList.remove("live");
+        }
+      } catch (err) {
+        console.error(err);
+        showError(err?.message || String(err));
+      }
+    }
+
+    function updateAudioParameters() {
+      if (!state.audioReady) return;
+      const a = state.audio;
+      const bright = controlValue("brightness");
+      const gravity = controlValue("gravity");
+      a.reverb.wet.rampTo(controlValue("reverb"), .4);
+      a.delay.wet.rampTo(.08 + gravity * .27, .4);
+      a.delay.feedback.rampTo(.16 + gravity * .28, .4);
+      a.lfo.min = 150 + bright * 260;
+      a.lfo.max = 700 + bright * 4200;
+      Tone.getTransport().bpm.rampTo(controlValue("tempo"), .4);
+    }
+
+    // ---------------------------------------------------------------------
+    // Fractal renderer worker
+    // ---------------------------------------------------------------------
+    const workerSource = String.raw`
+      const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+      function hsv(h,s,v){
+        h=((h%1)+1)%1; const i=Math.floor(h*6), f=h*6-i, p=v*(1-s), q=v*(1-f*s), t=v*(1-(1-f)*s);
+        const m=i%6; const rgb=m===0?[v,t,p]:m===1?[q,v,p]:m===2?[p,v,t]:m===3?[p,q,v]:m===4?[t,p,v]:[v,p,q];
+        return rgb.map(x=>x*255);
+      }
+      function breathe(s,time,drift,motion){
+        const phase=(time*s.breathRate+s.breathPhase)%1, th=phase*Math.PI*2, amp=drift*(.45+.8*motion), si=Math.sin(th), co=Math.cos(th);
+        if(s.path==='circle') return [s.homeRe+amp*co,s.homeIm+amp*si];
+        if(s.path==='horizontal') return [s.homeRe+amp*si,s.homeIm];
+        if(s.path==='vertical') return [s.homeRe,s.homeIm+amp*si];
+        if(s.path==='figure_eight'){const d=1+si*si; return [s.homeRe+amp*co/d,s.homeIm+amp*si*co/d];}
+        if(s.path==='radial_pulse') return [s.homeRe*(1+amp*si),s.homeIm*(1+amp*si)];
+        return [s.homeRe,s.homeIm];
+      }
+      self.onmessage=(e)=>{
+        const {w,h,time,systems,maxIter,drift,gravity,brightness,motion,pointer}=e.data;
+        const pixels=new Uint8ClampedArray(w*h*4), aspect=w/h;
+        const dynamic=systems.map((s,idx)=>{
+          const orbit=time*s.orbitRate*motion; let x=.5+Math.cos(s.angle+orbit)*s.orbitRadius, y=.5+Math.sin(s.angle+orbit)*s.orbitRadius;
+          if(pointer.active){ const dx=pointer.x-x,dy=pointer.y-y,dist=Math.sqrt(dx*dx+dy*dy)+.03; const pull=pointer.strength*gravity*.07/dist; x+=dx*pull; y+=dy*pull; }
+          const cc=breathe(s,time,drift,motion);
+          const pulse=Math.sin(time*s.color.pulseRate*Math.PI*2+s.color.pulsePhase);
+          const ch=(s.color.coolHue+s.color.hueRate*time+.02*pulse)%1, wh=(s.color.warmHue-s.color.hueRate*time*.45+.02*pulse+1)%1;
+          return {...s,x,y,re:cc[0],im:cc[1],cool:hsv(ch,s.color.coolSat,clamp(s.color.coolVal+brightness*.12+.08*pulse,0,1)),warm:hsv(wh,s.color.warmSat,clamp(s.color.warmVal+.06*pulse,0,1))};
+        });
+        const zoom=1.05+motion*.22+Math.sin(time*.08)*.035;
+        const xHalf=1.72/zoom, yHalf=xHalf/aspect;
+        let p=0;
+        for(let py=0;py<h;py++){
+          const zy0=(py/(h-1)*2-1)*yHalf;
+          for(let px=0;px<w;px++){
+            const zx0=(px/(w-1)*2-1)*xHalf;
+            let total=0,cr=0,ci=0,c0=0,c1=0,c2=0,w0=0,w1=0,w2=0,dominance=0;
+            const ux=px/w,uy=py/h;
+            for(const s of dynamic){
+              const dx=ux-s.x,dy=uy-s.y,d2=dx*dx+dy*dy;
+              let weight=s.mass/(1+d2/(s.sigma*s.sigma));
+              const dcx=ux-.5,dcy=uy-.5,centerD=Math.sqrt(dcx*dcx+dcy*dcy)+.02;
+              weight*=1+gravity*.18/centerD;
+              total+=weight; cr+=weight*s.re; ci+=weight*s.im;
+              c0+=weight*s.cool[0];c1+=weight*s.cool[1];c2+=weight*s.cool[2];
+              w0+=weight*s.warm[0];w1+=weight*s.warm[1];w2+=weight*s.warm[2];
+              dominance=Math.max(dominance,weight);
+            }
+            cr/=total;ci/=total;c0/=total;c1/=total;c2/=total;w0/=total;w1/=total;w2/=total;
+            let zr=zx0,zi=zy0,k=0,mag2=0;
+            for(;k<maxIter;k++){
+              const nr=zr*zr-zi*zi+cr;zi=2*zr*zi+ci;zr=nr;mag2=zr*zr+zi*zi;if(mag2>4)break;
+            }
+            let r,g,b;
+            if(k>=maxIter){ r=c0*.035;g=c1*.035;b=c2*.045; }
+            else {
+              const smooth=clamp((k+1-Math.log2(Math.log2(Math.sqrt(mag2))))/maxIter,0,1);
+              const rr=Math.pow(smooth,.68),gg=Math.pow(smooth,1.18),bb=1-Math.pow(1-smooth,1.08);
+              r=c0+(w0-c0)*rr;g=c1+(w1-c1)*gg;b=c2+(w2-c2)*bb;
+              const glow=Math.pow(smooth,3)*brightness*34;r+=glow;g+=glow*.55;b+=glow*.85;
+            }
+            const dx=ux-.5,dy=uy-.5,d=Math.sqrt(dx*dx+dy*dy);
+            const horizon=.055+.055*gravity,ring=Math.exp(-Math.pow((d-(horizon+.025))/(.012+.01*motion),2));
+            const hole=clamp((horizon-d)/.035,0,1);
+            r=r*(1-hole*.72)+ring*(w0*.85);g=g*(1-hole*.72)+ring*(w1*.85);b=b*(1-hole*.72)+ring*(w2*.85);
+            const vignette=1-clamp((Math.sqrt((ux-.5)**2+(uy-.5)**2)-.28)/.55,0,.46);
+            pixels[p++]=clamp(r*vignette,0,255);pixels[p++]=clamp(g*vignette,0,255);pixels[p++]=clamp(b*vignette,0,255);pixels[p++]=255;
+          }
+        }
+        self.postMessage({pixels:pixels.buffer,w,h,dynamic:dynamic.map(s=>({x:s.x,y:s.y,re:s.re,im:s.im}))},[pixels.buffer]);
+      };
+    `;
+
+    function initWorker() {
+      const blob = new Blob([workerSource], { type: "text/javascript" });
+      state.visualWorker = new Worker(URL.createObjectURL(blob));
+      state.visualWorker.onmessage = (event) => {
+        const { pixels, w, h, dynamic } = event.data;
+        fractalCanvas.width = w; fractalCanvas.height = h;
+        fractalCtx.putImageData(new ImageData(new Uint8ClampedArray(pixels), w, h), 0, 0);
+        state.dynamicSystems = dynamic;
+        state.fractalReady = true;
+        state.workerBusy = false;
+        state.workerFrames++;
+        const now = performance.now();
+        if (now - state.lastWorkerFpsAt > 1000) {
+          state.workerFps = state.workerFrames * 1000 / (now - state.lastWorkerFpsAt);
+          state.workerFrames = 0; state.lastWorkerFpsAt = now;
+          els.renderChip.textContent = `Field ${state.workerFps.toFixed(1)} fps`;
+        }
+      };
+      state.visualWorker.onerror = (e) => { console.error(e); state.workerBusy = false; };
+    }
+
+    function requestVisual(force = false) {
+      if (!state.visualWorker || !state.systems.length || state.workerBusy) return;
+      const now = performance.now();
+      const targetInterval = state.width < 700 ? 105 : 76;
+      if (!force && now < state.nextRenderAt) return;
+      state.nextRenderAt = now + targetInterval;
+      state.workerBusy = true;
+      const baseW = state.width < 700 ? 190 : 270;
+      const w = Math.max(120, Math.round(baseW * state.renderScale));
+      const h = Math.max(80, Math.round(w * state.height / state.width));
+      state.visualWorker.postMessage({
+        w, h, time: state.visualTime, systems: state.systems, maxIter: state.width < 700 ? 54 : 64,
+        drift: controlValue("drift"), gravity: controlValue("gravity"), brightness: controlValue("brightness"), motion: controlValue("motion"),
+        pointer: state.pointer
+      });
+    }
+
+    // ---------------------------------------------------------------------
+    // Canvas presentation and audio-reactive overlays
+    // ---------------------------------------------------------------------
+    function resize() {
+      state.dpr = Math.min(window.devicePixelRatio || 1, 2);
+      state.width = window.innerWidth; state.height = window.innerHeight;
+      els.canvas.width = Math.round(state.width * state.dpr);
+      els.canvas.height = Math.round(state.height * state.dpr);
+      els.canvas.style.width = state.width + "px";
+      els.canvas.style.height = state.height + "px";
+      ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
+      requestVisual(true);
+    }
+
+    function getAudioEnergy() {
+      if (!state.audioReady || !state.playing) return { low: 0, high: 0, avg: 0 };
+      const values = state.audio.fft.getValue();
+      let low = 0, high = 0, avg = 0;
+      for (let i = 0; i < values.length; i++) {
+        const v = Number.isFinite(values[i]) ? values[i] : 0;
+        avg += v;
+        if (i < values.length * .25) low += v;
+        if (i > values.length * .55) high += v;
+      }
+      return { low: low / (values.length * .25), high: high / (values.length * .45), avg: avg / values.length };
+    }
+
+    function drawOverlay(time, energy) {
+      const w = state.width, h = state.height;
+      const systems = state.dynamicSystems || state.systems;
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+
+      // Fine field contour lines.
+      ctx.lineWidth = 1;
+      for (let ring = 0; ring < 5; ring++) {
+        const r = Math.min(w,h) * (.065 + ring * .034 + Math.sin(time * .3 + ring) * .003);
+        ctx.beginPath();
+        ctx.arc(w*.5, h*.5, r * (1 + energy.low * .04), 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(210,225,255,${.035 + ring * .008})`;
+        ctx.stroke();
+      }
+
+      // Harmonic system nodes and orbital links.
+      if (systems?.length) {
+        ctx.beginPath();
+        systems.forEach((s, i) => {
+          const x = s.x * w, y = s.y * h;
+          if (i === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        });
+        ctx.closePath();
+        ctx.strokeStyle = `rgba(190,220,255,${.055 + energy.avg * .09})`;
+        ctx.stroke();
+
+        systems.forEach((s, i) => {
+          const source = state.systems[i] || state.systems[0];
+          const x = s.x * w, y = s.y * h;
+          const hue = ((source.color.coolHue + time * source.color.hueRate) % 1) * 360;
+          const pulse = .5 + .5 * Math.sin(time * 1.3 + i * 2.1);
+          const radius = 3.5 + pulse * 3 + energy.high * 5;
+          const grad = ctx.createRadialGradient(x,y,0,x,y,radius*5);
+          grad.addColorStop(0, `hsla(${hue},95%,78%,.88)`);
+          grad.addColorStop(.12, `hsla(${hue},95%,66%,.42)`);
+          grad.addColorStop(1, `hsla(${hue},95%,55%,0)`);
+          ctx.fillStyle = grad;
+          ctx.beginPath(); ctx.arc(x,y,radius*5,0,Math.PI*2); ctx.fill();
+          ctx.fillStyle = `hsla(${hue},95%,88%,.85)`;
+          ctx.beginPath(); ctx.arc(x,y,Math.max(1.2,radius*.25),0,Math.PI*2); ctx.fill();
+        });
+      }
+
+      // Note blooms travel from system nodes toward the attractor.
+      const alive = [];
+      for (const n of state.recentNotes) {
+        const age = time - n.born, life = n.duration;
+        if (age > life) continue;
+        alive.push(n);
+        const t = clamp(age / life, 0, 1);
+        const ease = 1 - (1 - t) ** 3;
+        const sx = n.x * w, sy = n.y * h;
+        const x = lerp(sx, w*.5, ease*.55), y = lerp(sy, h*.5, ease*.55) + Math.sin(t*Math.PI*3+n.systemIndex)*18*(1-t);
+        const hue = ((state.systems[n.systemIndex]?.color.warmHue || .9) * 360 + age*14) % 360;
+        const alpha = (1-t) * (.22 + n.velocity*.5);
+        ctx.strokeStyle = `hsla(${hue},95%,72%,${alpha})`;
+        ctx.lineWidth = 1 + n.velocity*2;
+        ctx.beginPath(); ctx.arc(x,y,4+t*30+n.velocity*10,0,Math.PI*2);ctx.stroke();
+        ctx.fillStyle = `hsla(${hue},100%,88%,${alpha*.9})`;
+        ctx.beginPath();ctx.arc(x,y,1.5+n.velocity*2.2,0,Math.PI*2);ctx.fill();
+      }
+      state.recentNotes = alive;
+
+      // Subtle audio waveform horizon.
+      if (state.audioReady && state.playing) {
+        const fft = state.audio.fft.getValue();
+        ctx.beginPath();
+        for (let i=0;i<fft.length;i++) {
+          const x = (i/(fft.length-1))*w;
+          const y = h*.79 - (fft[i] || 0)*42;
+          i ? ctx.lineTo(x,y) : ctx.moveTo(x,y);
+        }
+        ctx.strokeStyle = "rgba(225,235,255,.08)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function frame(nowMs) {
+      const dt = Math.min(.05, (nowMs - state.lastFrame) / 1000 || .016);
+      state.lastFrame = nowMs;
+      state.visualTime += dt;
+      requestVisual();
+      const energy = getAudioEnergy();
+
+      ctx.setTransform(state.dpr,0,0,state.dpr,0,0);
+      ctx.fillStyle = "#05060c"; ctx.fillRect(0,0,state.width,state.height);
+      if (state.fractalReady) {
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        const breathe = 1 + Math.sin(state.visualTime * .17) * .006 * controlValue("motion");
+        const dw = state.width * breathe, dh = state.height * breathe;
+        ctx.drawImage(fractalCanvas, (state.width-dw)/2, (state.height-dh)/2, dw, dh);
+      }
+      drawOverlay(state.visualTime, energy);
+
+      state.pointer.strength *= Math.pow(.02, dt);
+      if (state.pointer.strength < .001) state.pointer.active = false;
+      requestAnimationFrame(frame);
+    }
+
+    function savePng() {
+      const link = document.createElement("a");
+      const safe = (state.composition?.name || "julia-drone-field").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
+      link.download = `${safe}.png`;
+      link.href = els.canvas.toDataURL("image/png");
+      link.click();
+    }
+
+    // ---------------------------------------------------------------------
+    // Events
+    // ---------------------------------------------------------------------
+    els.play.addEventListener("click", togglePlayback);
+    els.generate.addEventListener("click", () => generateComposition());
+    els.save.addEventListener("click", savePng);
+    els.collapse.addEventListener("click", () => {
+      els.panel.classList.toggle("collapsed");
+      els.collapse.textContent = els.panel.classList.contains("collapsed") ? "⌃" : "⌄";
+    });
+    els.seed.addEventListener("keydown", (e) => { if (e.key === "Enter") generateComposition(); });
+
+    ["tempo","density","drift","gravity","reverb","brightness","motion"].forEach(id => {
+      els[id].addEventListener("input", () => { updateOutputs(); updateAudioParameters(); requestVisual(true); });
+    });
+    els.systems.addEventListener("input", updateOutputs);
+    els.systems.addEventListener("change", () => generateComposition());
+    els.key.addEventListener("change", () => generateComposition());
+    els.scale.addEventListener("change", () => generateComposition());
+
+    els.canvas.addEventListener("pointerdown", (e) => {
+      state.pointer.x = e.clientX / state.width; state.pointer.y = e.clientY / state.height;
+      state.pointer.active = true; state.pointer.strength = 1;
+      requestVisual(true);
+      if (state.audioReady) {
+        const hz = 180 + (1-state.pointer.y) * 2400;
+        state.audio.filter.frequency.rampTo(hz, .18);
+      }
+    });
+    els.canvas.addEventListener("pointermove", (e) => {
+      if (!e.buttons) return;
+      state.pointer.x = e.clientX / state.width; state.pointer.y = e.clientY / state.height;
+      state.pointer.active = true; state.pointer.strength = 1;
+    });
+    window.addEventListener("resize", resize, { passive: true });
+    window.addEventListener("keydown", (e) => {
+      if (e.target.matches("input,select")) return;
+      if (e.code === "Space") { e.preventDefault(); togglePlayback(); }
+      if (e.key.toLowerCase() === "r") randomizeSeed();
+      if (e.key.toLowerCase() === "g") generateComposition();
+    });
+
+    // Auto-adjust fractal resolution if the renderer is struggling.
+    setInterval(() => {
+      if (state.workerFps > 0 && state.workerFps < 6 && state.renderScale > .72) state.renderScale -= .08;
+      else if (state.workerFps > 11 && state.renderScale < 1.14) state.renderScale += .04;
+      state.renderScale = clamp(state.renderScale, .68, 1.16);
+    }, 2500);
+
+    // Bootstrap.
+    updateOutputs();
+    initWorker();
+    resize();
+    generateComposition();
+    requestAnimationFrame(frame);
+  })();
+  </script>
+</body>
+</html>
