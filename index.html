@@ -870,12 +870,16 @@
       safe: {
         label: "Safe", lookAhead: .26, updateInterval: .045, eventLead: .014,
         visualReliefMs: 7000, shedSeconds: 2.5, renderScaleCap: .86,
-        melodyVoices: 48, droneVoices: 18, hazeVoices: 14, bassVoices: 6
+        melodyVoices: 48, droneVoices: 22, hazeVoices: 18, bassVoices: 10
       },
       maximum: {
         label: "Maximum", lookAhead: .42, updateInterval: .07, eventLead: .024,
         visualReliefMs: 13000, shedSeconds: 5, renderScaleCap: .68,
-        melodyVoices: 24, droneVoices: 12, hazeVoices: 10, bassVoices: 4
+        // Drone/haze/bass are cheap sine & triangle voices (the fractal worker
+        // is the real CPU cost), so these pools stay generous even in the
+        // mobile-performance profile -- a starved pool steals ringing voices,
+        // and a stolen voice jumps its oscillator mid-cycle: an audible click.
+        melodyVoices: 24, droneVoices: 18, hazeVoices: 14, bassVoices: 8
       }
     };
 
@@ -1499,7 +1503,7 @@
         envelope: { attack: bassEnv.attack, decay: 2, sustain: .55, release: bassEnv.release },
         filterEnvelope: { attack: 1, decay: 2, sustain: .3, release: 5, baseFrequency: 90, octaves: 2.2 }
       }).connect(trackGains.bass);
-      bass.maxPolyphony = 8;
+      bass.maxPolyphony = 10;
       bass.volume.value = -9;
       const noise = new Tone.NoiseSynth({
         noise: { type: "pink" }, envelope: { attack: noiseEnv.attack, decay: 3.5, sustain: 0, release: noiseEnv.release }
@@ -1969,7 +1973,7 @@
       return {
         label: "Auto", mode: "auto", lookAhead: .16, updateInterval: .035, eventLead: .01,
         visualReliefMs: 5000, shedSeconds: 1.5, renderScaleCap: 1,
-        melodyVoices: 64, droneVoices: 22, hazeVoices: 16, bassVoices: 8
+        melodyVoices: 64, droneVoices: 26, hazeVoices: 20, bassVoices: 10
       };
     }
 
@@ -2031,6 +2035,27 @@
     const OVERDUE_DROP_SECONDS = .18;
     function eventIsOverdue(time) {
       return !!window.Tone && Number.isFinite(Number(time)) && (Tone.now() - Number(time)) > OVERDUE_DROP_SECONDS;
+    }
+
+    // Collapse the active playback layers (there are two mid-crossfade) into a
+    // single set of unique pitches, keeping the loudest velocity for any pitch
+    // both scenes share. Triggering each pitch once per event -- instead of
+    // once per layer -- roughly halves the voices kept alive on the shared
+    // drone/haze/bass pools during a fade, which is what removes the rare
+    // voice-steal click when a pitch would otherwise be allocated twice at the
+    // same instant. With a single active layer this is identical to before.
+    function mergeLayerChord(getNotes, baseVelocity) {
+      const merged = new Map();
+      for (const layer of getPlaybackLayers()) {
+        const notes = getNotes(layer.composition);
+        if (!notes || !notes.length) continue;
+        const vel = clamp(safeVelocity(baseVelocity) * layer.gain, .0001, 1);
+        notes.forEach((note, index) => {
+          const prev = merged.get(note);
+          if (!prev || vel > prev.vel) merged.set(note, { vel, index });
+        });
+      }
+      return merged;
     }
 
     function bufferSafetySheddingActive() {
@@ -2167,14 +2192,14 @@
         oscillator: { type: "sine" },
         envelope: { attack: droneEnv.attack, decay: 3, sustain: .78, release: droneEnv.release }
       }).connect(trackGains.drone);
-      drone.maxPolyphony = 24;
+      drone.maxPolyphony = 26;
       drone.volume.value = -11;
 
       const haze = new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: "triangle" },
         envelope: { attack: hazeEnv.attack, decay: 4, sustain: .3, release: hazeEnv.release }
       }).connect(trackGains.haze);
-      haze.maxPolyphony = 18;
+      haze.maxPolyphony = 20;
       haze.volume.value = -19;
 
       const melody = createClicklessMelody(trackGains.melody, melodyEnv);
@@ -2189,7 +2214,7 @@
         envelope: { attack: bassEnv.attack, decay: 2, sustain: .55, release: bassEnv.release },
         filterEnvelope: { attack: 1, decay: 2, sustain: .3, release: 5, baseFrequency: 90, octaves: 2.2 }
       }).connect(trackGains.bass);
-      bass.maxPolyphony = 8;
+      bass.maxPolyphony = 10;
       bass.volume.value = -9;
 
       const noise = new Tone.NoiseSynth({
@@ -2336,35 +2361,30 @@
         state.droneCycle = (state.droneCycle || 0) + 1;
         if (eventIsOverdue(time)) return;
         time = guardedEventTime(time);
-        for (const layer of getPlaybackLayers()) {
-          const c = layer.composition;
-          if (!c?.drone?.length) continue;
-          const notes = state.droneCycle % 2 ? c.drone.slice().reverse() : c.drone;
-          const velocity = clamp(safeVelocity(.45) * layer.gain, .0001, 1);
-          a.drone.triggerAttackRelease(notes, scaledDuration("6m", "drone"), time, velocity);
-          notes.forEach((n, i) => emitNoteVisual(n, .32 * layer.gain, i, 8));
+        const reverse = state.droneCycle % 2 === 1;
+        const merged = mergeLayerChord(c => c?.drone?.length ? (reverse ? c.drone.slice().reverse() : c.drone) : null, .45);
+        const dur = scaledDuration("6m", "drone");
+        for (const [note, info] of merged) {
+          a.drone.triggerAttackRelease(note, dur, time, info.vel);
+          emitNoteVisual(note, .32, info.index, 8);
         }
       }, "4m", 0));
 
       state.scheduleIds.push(T.scheduleRepeat((time) => {
         if (eventIsOverdue(time)) return;
         time = guardedEventTime(time);
-        for (const layer of getPlaybackLayers()) {
-          const c = layer.composition;
-          if (!c?.upperDrone?.length) continue;
-          a.haze.triggerAttackRelease(c.upperDrone, scaledDuration("3m", "haze"), time, clamp(safeVelocity(.2) * layer.gain, .0001, 1));
-        }
+        const merged = mergeLayerChord(c => c?.upperDrone || null, .2);
+        const dur = scaledDuration("3m", "haze");
+        for (const [note, info] of merged) a.haze.triggerAttackRelease(note, dur, time, info.vel);
       }, "4m", "2m"));
 
       state.scheduleIds.push(T.scheduleRepeat((time) => {
         if (eventIsOverdue(time)) return;
         time = guardedEventTime(time);
-        for (const layer of getPlaybackLayers()) {
-          const c = layer.composition;
-          if (!c) continue;
-          const note = (state.transportStep / 16) % 2 < 1 ? c.bass : c.altBass;
-          if (note) a.bass.triggerAttackRelease(note, scaledDuration("2m", "bass"), time, clamp(safeVelocity(.45) * layer.gain, .0001, 1));
-        }
+        const useAlt = (state.transportStep / 16) % 2 >= 1;
+        const merged = mergeLayerChord(c => { const note = useAlt ? c?.altBass : c?.bass; return note ? [note] : null; }, .45);
+        const dur = scaledDuration("2m", "bass");
+        for (const [note, info] of merged) a.bass.triggerAttackRelease(note, dur, time, info.vel);
       }, "2m", 0));
 
       state.scheduleIds.push(T.scheduleRepeat((time) => {
