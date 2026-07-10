@@ -719,6 +719,26 @@
         level: def.level, duration: def.duration, fadeIn: def.fadeIn, fadeOut: def.fadeOut, mute: false, solo: false
       }]));
     }
+
+    // Very short envelopes and exhausted PolySynth voice pools can create
+    // narrow, high-frequency transients that are especially obvious on
+    // phone speakers. These floors are intentionally tiny: they preserve the
+    // user's fade settings while guaranteeing a sample-safe de-click ramp.
+    const ENVELOPE_FLOORS = {
+      drone:  { attack: .04, release: .10 },
+      haze:   { attack: .04, release: .10 },
+      bass:   { attack: .035, release: .12 },
+      melody: { attack: .09, release: .12 },
+      noise:  { attack: .12, release: .16 }
+    };
+    function stabilizedEnvelope(track, mixer) {
+      const source = mixer?.[track] || TRACK_DEFS[track];
+      const floor = ENVELOPE_FLOORS[track] || { attack: .025, release: .08 };
+      return {
+        attack: Math.max(floor.attack, Number(source?.fadeIn) || floor.attack),
+        release: Math.max(floor.release, Number(source?.fadeOut) || floor.release)
+      };
+    }
     function createDefaultArrangement() {
       return {
         scenes: [], loop: false, running: false, activeIndex: -1, phase: "idle",
@@ -1283,39 +1303,54 @@
       const filter = new Tone.Filter({ type: "lowpass", frequency: 700 + brightness * 3500, Q: 1.2, rolloff: -24 }).connect(delay);
       const dry = new Tone.Gain(.48).connect(master);
       filter.connect(dry);
+      // Band-limit the transient-rich layers before delay/reverb. The melody
+      // cutoff follows brightness but stays below the narrow upper sidebands
+      // that were measured as intermittent chirps on active FM notes.
+      const melodyGuard = new Tone.Filter({ type: "lowpass", frequency: 4200 + brightness * 1800, Q: .12, rolloff: -24 }).connect(delay);
+      const noiseGuard = new Tone.Filter({ type: "lowpass", frequency: 5200, Q: .2, rolloff: -24 }).connect(reverb);
       const trackGains = {};
       for (const key of Object.keys(TRACK_DEFS)) {
         const mix = mixer[key];
         const silent = mix.mute || (anySolo && !mix.solo);
         const target = silent ? 0 : dbToGain(mix.level);
-        const route = key === "melody" ? delay : (key === "noise" ? reverb : filter);
+        const route = key === "melody" ? melodyGuard : (key === "noise" ? noiseGuard : filter);
         trackGains[key] = new Tone.Gain(target).connect(route);
       }
       const lfo = new Tone.LFO({ frequency: .035, min: 150 + brightness * 260, max: 700 + brightness * 4200, phase: 180 }).start(plan.audioStart);
       lfo.connect(filter.frequency);
 
+      const droneEnv = stabilizedEnvelope("drone", mixer);
+      const hazeEnv = stabilizedEnvelope("haze", mixer);
+      const melodyEnv = stabilizedEnvelope("melody", mixer);
+      const bassEnv = stabilizedEnvelope("bass", mixer);
+      const noiseEnv = stabilizedEnvelope("noise", mixer);
       const drone = new Tone.PolySynth(Tone.Synth, {
-        oscillator: { type: "sine" }, envelope: { attack: mixer.drone.fadeIn, decay: 3, sustain: .78, release: mixer.drone.fadeOut }
+        oscillator: { type: "sine" }, envelope: { attack: droneEnv.attack, decay: 3, sustain: .78, release: droneEnv.release }
       }).connect(trackGains.drone);
-      drone.maxPolyphony = 12; drone.volume.value = -11;
+      drone.maxPolyphony = 24; drone.volume.value = -11;
       const haze = new Tone.PolySynth(Tone.Synth, {
-        oscillator: { type: "triangle" }, envelope: { attack: mixer.haze.fadeIn, decay: 4, sustain: .3, release: mixer.haze.fadeOut }
+        oscillator: { type: "triangle" }, envelope: { attack: hazeEnv.attack, decay: 4, sustain: .3, release: hazeEnv.release }
       }).connect(trackGains.haze);
-      haze.maxPolyphony = 10; haze.volume.value = -19;
+      haze.maxPolyphony = 18; haze.volume.value = -19;
       const melody = new Tone.PolySynth(Tone.FMSynth, {
-        harmonicity: 1.25, modulationIndex: 2.2, oscillator: { type: "sine" }, modulation: { type: "sine" },
-        envelope: { attack: mixer.melody.fadeIn, decay: 1.4, sustain: .06, release: mixer.melody.fadeOut },
-        modulationEnvelope: { attack: .2, decay: 1.2, sustain: .05, release: 2 }
+        harmonicity: 1.0, modulationIndex: .65, oscillator: { type: "sine" }, modulation: { type: "sine" },
+        envelope: { attack: melodyEnv.attack, decay: 1.4, sustain: .06, release: melodyEnv.release },
+        modulationEnvelope: { attack: .45, decay: 1.6, sustain: .02, release: 1.4 }
       }).connect(trackGains.melody);
-      melody.maxPolyphony = 12; melody.volume.value = -15;
-      const bass = new Tone.MonoSynth({
-        oscillator: { type: "sine" }, filter: { type: "lowpass", Q: 1, rolloff: -24 },
-        envelope: { attack: mixer.bass.fadeIn, decay: 2, sustain: .55, release: mixer.bass.fadeOut },
+      melody.maxPolyphony = 32; melody.volume.value = -15;
+      // Alternate overlapping bass pulses through a small polyphonic pool.
+      // A single MonoSynth was being retriggered at the exact release sample,
+      // which can produce an intermittent chirp even in a single scene.
+      const bass = new Tone.PolySynth(Tone.MonoSynth, {
+        portamento: .035,
+        oscillator: { type: "sine" }, filter: { type: "lowpass", Q: .8, rolloff: -24 },
+        envelope: { attack: bassEnv.attack, decay: 2, sustain: .55, release: bassEnv.release },
         filterEnvelope: { attack: 1, decay: 2, sustain: .3, release: 5, baseFrequency: 90, octaves: 2.2 }
       }).connect(trackGains.bass);
+      bass.maxPolyphony = 8;
       bass.volume.value = -9;
       const noise = new Tone.NoiseSynth({
-        noise: { type: "pink" }, envelope: { attack: mixer.noise.fadeIn, decay: 3.5, sustain: 0, release: mixer.noise.fadeOut }
+        noise: { type: "pink" }, envelope: { attack: noiseEnv.attack, decay: 3.5, sustain: 0, release: noiseEnv.release }
       }).connect(trackGains.noise);
       noise.volume.value = -27;
 
@@ -1785,59 +1820,71 @@
       const filter = new Tone.Filter({ type: "lowpass", frequency: 1200, Q: 1.2, rolloff: -24 }).connect(delay);
       const dry = new Tone.Gain(.48).connect(master);
       filter.connect(dry);
+      // A steep, brightness-aware guard removes the short FM sideband bursts
+      // that are exaggerated by small mobile speakers.
+      const melodyGuard = new Tone.Filter({ type: "lowpass", frequency: 4200 + controlValue("brightness") * 1800, Q: .12, rolloff: -24 }).connect(delay);
+      const noiseGuard = new Tone.Filter({ type: "lowpass", frequency: 5200, Q: .2, rolloff: -24 }).connect(reverb);
       const trackGains = {
         drone: new Tone.Gain(1).connect(filter),
         haze: new Tone.Gain(1).connect(filter),
         bass: new Tone.Gain(1).connect(filter),
-        melody: new Tone.Gain(1).connect(delay),
-        noise: new Tone.Gain(1).connect(reverb)
+        melody: new Tone.Gain(1).connect(melodyGuard),
+        noise: new Tone.Gain(1).connect(noiseGuard)
       };
       const lfo = new Tone.LFO({ frequency: .035, min: 240, max: 2600, phase: 180 }).start();
       lfo.connect(filter.frequency);
 
+      const droneEnv = stabilizedEnvelope("drone", state.mixer);
+      const hazeEnv = stabilizedEnvelope("haze", state.mixer);
+      const melodyEnv = stabilizedEnvelope("melody", state.mixer);
+      const bassEnv = stabilizedEnvelope("bass", state.mixer);
+      const noiseEnv = stabilizedEnvelope("noise", state.mixer);
+
       const drone = new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: "sine" },
-        envelope: { attack: state.mixer.drone.fadeIn, decay: 3, sustain: .78, release: state.mixer.drone.fadeOut }
+        envelope: { attack: droneEnv.attack, decay: 3, sustain: .78, release: droneEnv.release }
       }).connect(trackGains.drone);
-      drone.maxPolyphony = 12;
+      drone.maxPolyphony = 24;
       drone.volume.value = -11;
 
       const haze = new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: "triangle" },
-        envelope: { attack: state.mixer.haze.fadeIn, decay: 4, sustain: .3, release: state.mixer.haze.fadeOut }
+        envelope: { attack: hazeEnv.attack, decay: 4, sustain: .3, release: hazeEnv.release }
       }).connect(trackGains.haze);
-      haze.maxPolyphony = 10;
+      haze.maxPolyphony = 18;
       haze.volume.value = -19;
 
       const melody = new Tone.PolySynth(Tone.FMSynth, {
-        harmonicity: 1.25,
-        modulationIndex: 2.2,
+        harmonicity: 1.0,
+        modulationIndex: .65,
         oscillator: { type: "sine" },
         modulation: { type: "sine" },
-        envelope: { attack: state.mixer.melody.fadeIn, decay: 1.4, sustain: .06, release: state.mixer.melody.fadeOut },
-        modulationEnvelope: { attack: .2, decay: 1.2, sustain: .05, release: 2 }
+        envelope: { attack: melodyEnv.attack, decay: 1.4, sustain: .06, release: melodyEnv.release },
+        modulationEnvelope: { attack: .45, decay: 1.6, sustain: .02, release: 1.4 }
       }).connect(trackGains.melody);
-      melody.maxPolyphony = 12;
+      melody.maxPolyphony = 32;
       melody.volume.value = -15;
 
-      const bass = new Tone.MonoSynth({
+      const bass = new Tone.PolySynth(Tone.MonoSynth, {
+        portamento: .035,
         oscillator: { type: "sine" },
-        filter: { type: "lowpass", Q: 1, rolloff: -24 },
-        envelope: { attack: state.mixer.bass.fadeIn, decay: 2, sustain: .55, release: state.mixer.bass.fadeOut },
+        filter: { type: "lowpass", Q: .8, rolloff: -24 },
+        envelope: { attack: bassEnv.attack, decay: 2, sustain: .55, release: bassEnv.release },
         filterEnvelope: { attack: 1, decay: 2, sustain: .3, release: 5, baseFrequency: 90, octaves: 2.2 }
       }).connect(trackGains.bass);
+      bass.maxPolyphony = 8;
       bass.volume.value = -9;
 
       const noise = new Tone.NoiseSynth({
         noise: { type: "pink" },
-        envelope: { attack: state.mixer.noise.fadeIn, decay: 3.5, sustain: 0, release: state.mixer.noise.fadeOut }
+        envelope: { attack: noiseEnv.attack, decay: 3.5, sustain: 0, release: noiseEnv.release }
       }).connect(trackGains.noise);
       noise.volume.value = -27;
 
       const fft = new Tone.FFT({ size: 64, smoothing: .85, normalRange: true });
       safetyGain.connect(fft);
 
-      state.audio = { limiter, safetyGain, master, reverb, delay, filter, dry, trackGains, lfo, drone, haze, melody, bass, noise, fft };
+      state.audio = { limiter, safetyGain, master, reverb, delay, filter, melodyGuard, noiseGuard, dry, trackGains, lfo, drone, haze, melody, bass, noise, fft };
       state.audioReady = true;
       updateMixerAudio(true);
       els.audioChip.textContent = "Audio ready";
@@ -1895,11 +1942,16 @@
     }
     function applyMixerEnvelopes() {
       if (!state.audioReady) return;
-      setEnvelopeSafely(state.audio.drone, state.mixer.drone.fadeIn, state.mixer.drone.fadeOut, { decay: 3, sustain: .78 });
-      setEnvelopeSafely(state.audio.haze, state.mixer.haze.fadeIn, state.mixer.haze.fadeOut, { decay: 4, sustain: .3 });
-      setEnvelopeSafely(state.audio.melody, state.mixer.melody.fadeIn, state.mixer.melody.fadeOut, { decay: 1.4, sustain: .06 });
-      setEnvelopeSafely(state.audio.bass, state.mixer.bass.fadeIn, state.mixer.bass.fadeOut, { decay: 2, sustain: .55 });
-      setEnvelopeSafely(state.audio.noise, state.mixer.noise.fadeIn, state.mixer.noise.fadeOut, { decay: 3.5, sustain: 0 });
+      const droneEnv = stabilizedEnvelope("drone", state.mixer);
+      const hazeEnv = stabilizedEnvelope("haze", state.mixer);
+      const melodyEnv = stabilizedEnvelope("melody", state.mixer);
+      const bassEnv = stabilizedEnvelope("bass", state.mixer);
+      const noiseEnv = stabilizedEnvelope("noise", state.mixer);
+      setEnvelopeSafely(state.audio.drone, droneEnv.attack, droneEnv.release, { decay: 3, sustain: .78 });
+      setEnvelopeSafely(state.audio.haze, hazeEnv.attack, hazeEnv.release, { decay: 4, sustain: .3 });
+      setEnvelopeSafely(state.audio.melody, melodyEnv.attack, melodyEnv.release, { decay: 1.4, sustain: .06 });
+      setEnvelopeSafely(state.audio.bass, bassEnv.attack, bassEnv.release, { decay: 2, sustain: .55 });
+      setEnvelopeSafely(state.audio.noise, noiseEnv.attack, noiseEnv.release, { decay: 3.5, sustain: 0 });
     }
     function updateMixerAudio(immediate = false, updateEnvelopes = true) {
       if (!state.audioReady || !state.audio?.trackGains) return;
@@ -1938,7 +1990,8 @@
       state.audio?.drone.releaseAll();
       state.audio?.haze.releaseAll();
       state.audio?.melody.releaseAll();
-      state.audio?.bass.triggerRelease();
+      if (typeof state.audio?.bass?.releaseAll === "function") state.audio.bass.releaseAll();
+      else state.audio?.bass?.triggerRelease?.();
     }
 
     function emitNoteVisual(note, velocity, systemIndex, duration = 2.5) {
@@ -2058,6 +2111,7 @@
       smoothParam(a.reverb.wet, controlValue("reverb"), .4);
       smoothParam(a.delay.wet, .08 + gravity * .27, .4);
       smoothParam(a.delay.feedback, .16 + gravity * .28, .4);
+      smoothParam(a.melodyGuard.frequency, 4200 + bright * 1800, .4);
       a.lfo.min = 150 + bright * 260;
       a.lfo.max = 700 + bright * 4200;
       const dynamics = normalizeDynamicRange();
