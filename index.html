@@ -1489,7 +1489,12 @@
       // A single MonoSynth was being retriggered at the exact release sample,
       // which can produce an intermittent chirp even in a single scene.
       const bass = new Tone.PolySynth(Tone.MonoSynth, {
-        portamento: .035,
+        // No portamento: the MonoSynth oscillator runs continuously, so a
+        // glide time makes every reused/newly-allocated voice sweep from its
+        // previous (or default) pitch up/down to the new note while the amp
+        // envelope is already opening -- an intermittent sub-bass chirp. The
+        // voice pool alone already prevents the single-synth retrigger click.
+        portamento: 0,
         oscillator: { type: "sine" }, filter: { type: "lowpass", Q: .8, rolloff: -24 },
         envelope: { attack: bassEnv.attack, decay: 2, sustain: .55, release: bassEnv.release },
         filterEnvelope: { attack: 1, decay: 2, sustain: .3, release: 5, baseFrequency: 90, octaves: 2.2 }
@@ -2015,6 +2020,19 @@
       return Math.max(Number.isFinite(requested) ? requested : now, now + p.eventLead);
     }
 
+    // When the main thread stalls (GC, worker load, a backgrounded tab), the
+    // transport can invoke several repeat callbacks in a row whose audio times
+    // are already in the past. guardedEventTime() clamps each of those forward,
+    // but clamping a whole batch stacks them onto the same instant -- an audible
+    // "burst" of simultaneously retriggered voices. Past a small grace window we
+    // drop the overdue event instead. A momentarily thinner texture is far less
+    // noticeable than a cluster, and step counters still advance so the piece
+    // stays phase-aligned once scheduling recovers.
+    const OVERDUE_DROP_SECONDS = .18;
+    function eventIsOverdue(time) {
+      return !!window.Tone && Number.isFinite(Number(time)) && (Tone.now() - Number(time)) > OVERDUE_DROP_SECONDS;
+    }
+
     function bufferSafetySheddingActive() {
       return window.Tone && Tone.now() < (state.bufferSafety.shedUntil || 0);
     }
@@ -2162,7 +2180,10 @@
       const melody = createClicklessMelody(trackGains.melody, melodyEnv);
 
       const bass = new Tone.PolySynth(Tone.MonoSynth, {
-        portamento: .035,
+        // No portamento -- see the offline render graph for the full rationale.
+        // A glide time on a continuously-running MonoSynth oscillator makes
+        // reused voices chirp from their prior pitch as the amp envelope opens.
+        portamento: 0,
         oscillator: { type: "sine" },
         filter: { type: "lowpass", Q: .8, rolloff: -24 },
         envelope: { attack: bassEnv.attack, decay: 2, sustain: .55, release: bassEnv.release },
@@ -2312,8 +2333,9 @@
       // transition both compositions are active with equal-power weights, so
       // the transport never needs to stop or jump between imported systems.
       state.scheduleIds.push(T.scheduleRepeat((time) => {
-        time = guardedEventTime(time);
         state.droneCycle = (state.droneCycle || 0) + 1;
+        if (eventIsOverdue(time)) return;
+        time = guardedEventTime(time);
         for (const layer of getPlaybackLayers()) {
           const c = layer.composition;
           if (!c?.drone?.length) continue;
@@ -2325,6 +2347,7 @@
       }, "4m", 0));
 
       state.scheduleIds.push(T.scheduleRepeat((time) => {
+        if (eventIsOverdue(time)) return;
         time = guardedEventTime(time);
         for (const layer of getPlaybackLayers()) {
           const c = layer.composition;
@@ -2334,6 +2357,7 @@
       }, "4m", "2m"));
 
       state.scheduleIds.push(T.scheduleRepeat((time) => {
+        if (eventIsOverdue(time)) return;
         time = guardedEventTime(time);
         for (const layer of getPlaybackLayers()) {
           const c = layer.composition;
@@ -2344,20 +2368,25 @@
       }, "2m", 0));
 
       state.scheduleIds.push(T.scheduleRepeat((time) => {
+        // Advance the step counter even when dropping an overdue tick so the
+        // melody/bass stay phase-aligned once the scheduler recovers.
+        const overdue = eventIsOverdue(time);
         time = guardedEventTime(time);
         const shedding = bufferSafetySheddingActive();
-        for (const layer of getPlaybackLayers()) {
-          const c = layer.composition;
-          if (!c?.melody?.length) continue;
-          const step = c.melody[state.transportStep % c.melody.length];
-          if (step?.active && !shedding) {
-            const brightness = controlValue("brightness");
-            const vel = clamp(step.velocity * (.58 + brightness * .34) * layer.gain, .001, MELODY_SAFETY.maxVelocity);
-            a.melody.triggerAttackRelease(step.note, scaledDuration(step.duration, "melody"), time, vel);
-            Tone.getDraw().schedule(() => emitNoteVisual(step.note, vel, step.systemIndex, 3.2), time);
+        if (!overdue) {
+          for (const layer of getPlaybackLayers()) {
+            const c = layer.composition;
+            if (!c?.melody?.length) continue;
+            const step = c.melody[state.transportStep % c.melody.length];
+            if (step?.active && !shedding) {
+              const brightness = controlValue("brightness");
+              const vel = clamp(step.velocity * (.58 + brightness * .34) * layer.gain, .001, MELODY_SAFETY.maxVelocity);
+              a.melody.triggerAttackRelease(step.note, scaledDuration(step.duration, "melody"), time, vel);
+              Tone.getDraw().schedule(() => emitNoteVisual(step.note, vel, step.systemIndex, 3.2), time);
+            }
           }
+          if (!shedding && state.transportStep % 16 === 12 && Math.random() < .34) a.noise.triggerAttackRelease(scaledDuration("2n", "noise"), time, safeVelocity(.09));
         }
-        if (!shedding && state.transportStep % 16 === 12 && Math.random() < .34) a.noise.triggerAttackRelease(scaledDuration("2n", "noise"), time, safeVelocity(.09));
         state.transportStep++;
       }, "8n", 0));
 
