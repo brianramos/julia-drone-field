@@ -236,8 +236,16 @@
           <div class="label-row"><label for="motion">Breathing motion</label><output id="motionOut">61%</output></div>
           <input id="motion" type="range" min="0" max="1" step="0.01" value="0.61" />
         </div>
+        <div class="control">
+          <div class="label-row"><label for="dynamicMin">Dynamic minimum</label><output id="dynamicMinOut">−36 dB</output></div>
+          <input id="dynamicMin" type="range" min="-60" max="-12" step="1" value="-36" />
+        </div>
+        <div class="control">
+          <div class="label-row"><label for="dynamicMax">Dynamic maximum</label><output id="dynamicMaxOut">−6 dB</output></div>
+          <input id="dynamicMax" type="range" min="-18" max="-1" step="1" value="-6" />
+        </div>
       </div>
-      <div class="hint">Space: play/stop · R: new seed · G: regenerate · click the field to bend the attractor · audio begins only after user interaction.</div>
+      <div class="hint">Dynamic minimum and maximum constrain note energy and the final limiter ceiling. Output fades in and out to prevent mobile-speaker clicks. Space: play/stop · R: new seed · G: regenerate · click the field to bend the attractor.</div>
     </div>
   </section>
 
@@ -390,7 +398,7 @@
     const els = {
       canvas: $("stage"), panel: $("panel"), play: $("play"), collapse: $("collapse"), generate: $("generate"), save: $("save"), seed: $("seed"),
       key: $("key"), scale: $("scale"), tempo: $("tempo"), systems: $("systems"), density: $("density"), drift: $("drift"), gravity: $("gravity"),
-      reverb: $("reverb"), brightness: $("brightness"), motion: $("motion"), pieceName: $("pieceName"), pieceMeta: $("pieceMeta"),
+      reverb: $("reverb"), brightness: $("brightness"), motion: $("motion"), dynamicMin: $("dynamicMin"), dynamicMax: $("dynamicMax"), pieceName: $("pieceName"), pieceMeta: $("pieceMeta"),
       audioChip: $("audioChip"), renderChip: $("renderChip"), cChip: $("cChip"), error: $("error")
     };
     const ctx = els.canvas.getContext("2d", { alpha: false, desynchronized: true });
@@ -403,10 +411,38 @@
       width: 1, height: 1, dpr: 1, pointer: { x: .5, y: .5, active: false, strength: 0 },
       visualWorker: null, workerBusy: false, workerFrames: 0, lastWorkerFpsAt: performance.now(), workerFps: 0,
       fractalReady: false, visualTime: 0, lastFrame: performance.now(), recentNotes: [],
-      renderScale: 1, nextRenderAt: 0, fftData: new Float32Array(64), transportStep: 0
+      renderScale: 1, nextRenderAt: 0, fftData: new Float32Array(64), transportStep: 0,
+      stopTimer: null, rebuildTimer: null
     };
 
     function controlValue(id) { return Number(els[id].value); }
+    function normalizeDynamicRange(changedId = "") {
+      let minDb = controlValue("dynamicMin");
+      let maxDb = controlValue("dynamicMax");
+      const minimumSpan = 3;
+      if (minDb > maxDb - minimumSpan) {
+        if (changedId === "dynamicMin") {
+          maxDb = clamp(minDb + minimumSpan, Number(els.dynamicMax.min), Number(els.dynamicMax.max));
+          els.dynamicMax.value = String(maxDb);
+          if (minDb > maxDb - minimumSpan) {
+            minDb = maxDb - minimumSpan;
+            els.dynamicMin.value = String(minDb);
+          }
+        } else {
+          minDb = clamp(maxDb - minimumSpan, Number(els.dynamicMin.min), Number(els.dynamicMin.max));
+          els.dynamicMin.value = String(minDb);
+          if (minDb > maxDb - minimumSpan) {
+            maxDb = minDb + minimumSpan;
+            els.dynamicMax.value = String(maxDb);
+          }
+        }
+      }
+      return { minDb, maxDb, spanDb: maxDb - minDb };
+    }
+    function compressorThreshold(dynamics = normalizeDynamicRange()) {
+      const reductionWindow = Math.min(12, Math.max(4, dynamics.spanDb * .35));
+      return clamp(dynamics.maxDb - reductionWindow, dynamics.minDb + 2, dynamics.maxDb - 1);
+    }
     function updateOutputs() {
       $("tempoOut").value = `${Math.round(controlValue("tempo"))} bpm`;
       $("systemsOut").value = `${Math.round(controlValue("systems"))}`;
@@ -416,6 +452,9 @@
       $("reverbOut").value = `${Math.round(controlValue("reverb") * 100)}%`;
       $("brightnessOut").value = `${Math.round(controlValue("brightness") * 100)}%`;
       $("motionOut").value = `${Math.round(controlValue("motion") * 100)}%`;
+      const dynamics = normalizeDynamicRange();
+      $("dynamicMinOut").value = `${dynamics.minDb < 0 ? "−" : "+"}${Math.abs(dynamics.minDb)} dB`;
+      $("dynamicMaxOut").value = `${dynamics.maxDb < 0 ? "−" : "+"}${Math.abs(dynamics.maxDb)} dB`;
     }
 
     // ---------------------------------------------------------------------
@@ -511,7 +550,7 @@
       document.documentElement.style.setProperty("--accent", `hsl(${Math.round(c0.color.coolHue * 360)} 92% 72%)`);
       document.documentElement.style.setProperty("--accent-2", `hsl(${Math.round(c0.color.warmHue * 360)} 92% 72%)`);
 
-      if (state.playing) rebuildSchedule(true);
+      if (state.playing) restartScheduleSafely();
       requestVisual(true);
     }
 
@@ -536,8 +575,18 @@
       if (!window.Tone) throw new Error("Tone.js could not be loaded. Check the network connection, then reload the page.");
       await Tone.start();
 
-      const limiter = new Tone.Limiter(-1).toDestination();
-      const master = new Tone.Gain(0.7).connect(limiter);
+      const dynamics = normalizeDynamicRange();
+      const limiter = new Tone.Limiter(dynamics.maxDb).toDestination();
+      const safetyGain = new Tone.Gain(0).connect(limiter);
+      const compressor = new Tone.Compressor({
+        threshold: compressorThreshold(dynamics),
+        ratio: 4,
+        attack: .008,
+        release: .22,
+        knee: 10
+      }).connect(safetyGain);
+      const dcBlocker = new Tone.Filter({ type: "highpass", frequency: 28, Q: .7, rolloff: -24 }).connect(compressor);
+      const master = new Tone.Gain(0.7).connect(dcBlocker);
       const reverb = new Tone.Reverb({ decay: 10, preDelay: .08, wet: controlValue("reverb") }).connect(master);
       const delay = new Tone.PingPongDelay({ delayTime: "8n.", feedback: .28, wet: .22 }).connect(reverb);
       const filter = new Tone.Filter({ type: "lowpass", frequency: 1200, Q: 1.2, rolloff: -24 }).connect(delay);
@@ -586,11 +635,40 @@
       noise.volume.value = -27;
 
       const fft = new Tone.FFT({ size: 64, smoothing: .85, normalRange: true });
-      master.connect(fft);
+      safetyGain.connect(fft);
 
-      state.audio = { limiter, master, reverb, delay, filter, dry, lfo, drone, haze, melody, bass, noise, fft };
+      state.audio = { limiter, safetyGain, compressor, dcBlocker, master, reverb, delay, filter, dry, lfo, drone, haze, melody, bass, noise, fft };
       state.audioReady = true;
       els.audioChip.textContent = "Audio ready";
+    }
+
+    function safeVelocity(value) {
+      const dynamics = normalizeDynamicRange();
+      const minGain = Tone.dbToGain(dynamics.minDb);
+      const maxGain = Tone.dbToGain(dynamics.maxDb);
+      const shaped = Math.pow(clamp(value, 0, 1), .82);
+      return clamp(minGain + (maxGain - minGain) * shaped, 0.0001, 1);
+    }
+
+    function fadeOutput(target, seconds = .12) {
+      if (!state.audioReady || !state.audio?.safetyGain) return;
+      const gain = state.audio.safetyGain.gain;
+      const now = Tone.now();
+      gain.cancelScheduledValues(now);
+      gain.setValueAtTime(Math.max(0, gain.value), now);
+      gain.linearRampToValueAtTime(clamp(target, 0, 1), now + Math.max(.01, seconds));
+    }
+
+    function restartScheduleSafely() {
+      if (!state.audioReady || !state.playing) return;
+      if (state.rebuildTimer) clearTimeout(state.rebuildTimer);
+      fadeOutput(0, .06);
+      state.rebuildTimer = setTimeout(() => {
+        state.rebuildTimer = null;
+        if (!state.playing) return;
+        rebuildSchedule(true);
+        fadeOutput(1, .14);
+      }, 75);
     }
 
     function clearSchedule() {
@@ -626,17 +704,17 @@
       state.scheduleIds.push(T.scheduleRepeat((time) => {
         state.droneCycle = (state.droneCycle || 0) + 1;
         const notes = state.droneCycle % 2 ? c.drone.slice().reverse() : c.drone;
-        a.drone.triggerAttackRelease(notes, "6m", time, .45);
+        a.drone.triggerAttackRelease(notes, "6m", time, safeVelocity(.45));
         notes.forEach((n, i) => emitNoteVisual(n, .32, i, 8));
       }, "4m", 0));
 
       state.scheduleIds.push(T.scheduleRepeat((time) => {
-        a.haze.triggerAttackRelease(c.upperDrone, "3m", time, .2);
+        a.haze.triggerAttackRelease(c.upperDrone, "3m", time, safeVelocity(.2));
       }, "4m", "2m"));
 
       state.scheduleIds.push(T.scheduleRepeat((time) => {
         const note = (state.transportStep / 16) % 2 < 1 ? c.bass : c.altBass;
-        a.bass.triggerAttackRelease(note, "2m", time, .45);
+        a.bass.triggerAttackRelease(note, "2m", time, safeVelocity(.45));
       }, "2m", 0));
 
       state.scheduleIds.push(T.scheduleRepeat((time) => {
@@ -644,10 +722,10 @@
         if (step.active) {
           const brightness = controlValue("brightness");
           const vel = clamp(step.velocity * (.65 + brightness * .55), .08, .98);
-          a.melody.triggerAttackRelease(step.note, step.duration, time, vel);
+          a.melody.triggerAttackRelease(step.note, step.duration, time, safeVelocity(vel));
           Tone.getDraw().schedule(() => emitNoteVisual(step.note, vel, step.systemIndex, 3.2), time);
         }
-        if (state.transportStep % 16 === 12 && Math.random() < .34) a.noise.triggerAttackRelease("2n", time, .09);
+        if (state.transportStep % 16 === 12 && Math.random() < .34) a.noise.triggerAttackRelease("2n", time, safeVelocity(.09));
         state.transportStep++;
       }, "8n", 0));
 
@@ -660,16 +738,28 @@
         if (!state.composition) generateComposition();
         const T = Tone.getTransport();
         if (!state.playing) {
+          if (state.stopTimer) { clearTimeout(state.stopTimer); state.stopTimer = null; }
+          if (state.rebuildTimer) { clearTimeout(state.rebuildTimer); state.rebuildTimer = null; }
           state.playing = true;
-          rebuildSchedule(true);
           els.play.textContent = "■ Stop";
           els.play.classList.add("playing");
           els.audioChip.textContent = "Audio live";
           els.audioChip.classList.add("live");
+          fadeOutput(0, .035);
+          await new Promise(resolve => setTimeout(resolve, 45));
+          if (!state.playing) return;
+          rebuildSchedule(true);
+          fadeOutput(1, .16);
         } else {
           state.playing = false;
-          T.stop(); T.position = 0;
-          clearSchedule();
+          if (state.rebuildTimer) { clearTimeout(state.rebuildTimer); state.rebuildTimer = null; }
+          fadeOutput(0, .09);
+          T.stop("+0.1");
+          state.stopTimer = setTimeout(() => {
+            state.stopTimer = null;
+            T.position = 0;
+            clearSchedule();
+          }, 120);
           els.play.textContent = "▶ Start";
           els.play.classList.remove("playing");
           els.audioChip.textContent = "Audio ready";
@@ -691,6 +781,9 @@
       a.delay.feedback.rampTo(.16 + gravity * .28, .4);
       a.lfo.min = 150 + bright * 260;
       a.lfo.max = 700 + bright * 4200;
+      const dynamics = normalizeDynamicRange();
+      a.limiter.threshold.rampTo(dynamics.maxDb, .2);
+      a.compressor.threshold.rampTo(compressorThreshold(dynamics), .2);
       Tone.getTransport().bpm.rampTo(controlValue("tempo"), .4);
     }
 
@@ -958,6 +1051,13 @@
 
     ["tempo","density","drift","gravity","reverb","brightness","motion"].forEach(id => {
       els[id].addEventListener("input", () => { updateOutputs(); updateAudioParameters(); requestVisual(true); });
+    });
+    ["dynamicMin","dynamicMax"].forEach(id => {
+      els[id].addEventListener("input", () => {
+        normalizeDynamicRange(id);
+        updateOutputs();
+        updateAudioParameters();
+      });
     });
     els.systems.addEventListener("input", updateOutputs);
     els.systems.addEventListener("change", () => generateComposition());
