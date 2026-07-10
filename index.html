@@ -223,6 +223,18 @@
     .scene-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .scene-number { width: 100%; height: 30px; border: 1px solid var(--line); border-radius: 8px; outline: 0; color: var(--text); background: rgba(0,0,0,.24); padding: 0 8px; font-size: 10px; }
     #arrangementStatus { margin-top: 9px; color: rgba(255,255,255,.48); font-size: 9px; line-height: 1.4; }
+    #arrangementWav {
+      width: 100%; margin-top: 10px; border-color: rgba(115,230,255,.34);
+      background: linear-gradient(135deg, rgba(40,155,190,.25), rgba(205,72,177,.2));
+    }
+    #arrangementWav.rendering { position: relative; cursor: progress; }
+    #arrangementWav.rendering::before {
+      content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 7px;
+      border: 2px solid rgba(255,255,255,.28); border-top-color: var(--accent); border-radius: 50%;
+      vertical-align: -2px; animation: wavSpin .75s linear infinite;
+    }
+    @keyframes wavSpin { to { transform: rotate(360deg); } }
+    button:disabled { cursor: not-allowed; opacity: .45; transform: none !important; filter: none !important; }
 
     #legend {
       position: fixed; right: 22px; bottom: max(21px, env(safe-area-inset-bottom));
@@ -260,6 +272,116 @@
       #subtitle { display: none; }
       .panel-body { max-height: 52vh; }
     }
+
+
+    /* Portrait card deck: desktop remains fixed-position via display: contents. */
+    #panelDeck { display: contents; }
+    #mobileDeckNav { display: none; }
+
+    @media (orientation: portrait) {
+      html, body { overscroll-behavior: none; }
+      header { z-index: 17; }
+      #visualToggle { z-index: 20; }
+
+      #panelDeck {
+        position: fixed;
+        inset: max(108px, calc(env(safe-area-inset-top) + 88px)) 0 calc(51px + env(safe-area-inset-bottom)) 0;
+        z-index: 15;
+        display: flex;
+        align-items: stretch;
+        gap: 12px;
+        width: 100%;
+        padding: 0 12px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-snap-type: x mandatory;
+        scroll-padding-inline: 12px;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+      #panelDeck::-webkit-scrollbar { display: none; }
+
+      #arranger, #mixer, #panel {
+        position: relative !important;
+        inset: auto !important;
+        left: auto !important;
+        right: auto !important;
+        top: auto !important;
+        bottom: auto !important;
+        flex: 0 0 calc(100vw - 24px);
+        width: calc(100vw - 24px) !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        height: 100%;
+        max-height: none !important;
+        margin: 0;
+        transform: none !important;
+        scroll-snap-align: center;
+        scroll-snap-stop: always;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 18px 55px rgba(0,0,0,.46);
+      }
+      #arranger { order: 1; }
+      #mixer { order: 2; }
+      #panel { order: 3; }
+
+      .arranger-body, .mixer-body, .panel-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: none !important;
+        overflow-y: auto;
+        overscroll-behavior-y: contain;
+        -webkit-overflow-scrolling: touch;
+      }
+      #arrangerCollapse, #mixerCollapse, #collapse { display: none; }
+
+      #mobileDeckNav {
+        position: fixed;
+        left: 50%;
+        bottom: max(8px, env(safe-area-inset-bottom));
+        z-index: 21;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        width: min(310px, calc(100vw - 32px));
+        padding: 4px;
+        transform: translateX(-50%);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(7,9,18,.82);
+        backdrop-filter: blur(20px) saturate(135%);
+        box-shadow: 0 12px 36px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.06);
+      }
+      #mobileDeckNav button {
+        appearance: none;
+        height: 32px;
+        padding: 0 8px;
+        border: 0;
+        border-radius: 999px;
+        color: rgba(255,255,255,.55);
+        background: transparent;
+        cursor: pointer;
+        font-size: 9px;
+        font-weight: 760;
+        letter-spacing: .09em;
+        text-transform: uppercase;
+        transition: color .18s ease, background .18s ease, box-shadow .18s ease;
+      }
+      #mobileDeckNav button.active,
+      #mobileDeckNav button[aria-current="page"] {
+        color: var(--text);
+        background: linear-gradient(135deg, rgba(61,201,232,.28), rgba(236,97,203,.22));
+        box-shadow: inset 0 0 0 1px rgba(126,234,255,.2);
+      }
+      #legend { display: none; }
+    }
+
+    @media (orientation: portrait) and (max-height: 650px) {
+      #panelDeck { inset-block-start: max(91px, calc(env(safe-area-inset-top) + 73px)); }
+      #mobileDeckNav button { height: 29px; }
+    }
+
   </style>
 </head>
 <body>
@@ -282,6 +404,7 @@
 
   <button id="visualToggle" class="secondary" type="button" aria-pressed="true" title="Pause visualization to reduce CPU/GPU use">◉ Visuals on</button>
 
+  <main id="panelDeck" aria-label="Swipeable composer panels">
   <aside id="arranger" aria-label="Long-form arrangement composer">
     <div class="arranger-head">
       <div class="arranger-title"><strong>Arrangement composer</strong><span>Sequence settings · hold · crossfade</span></div>
@@ -305,6 +428,7 @@
       <div class="arrangement-progress" aria-hidden="true"><div id="arrangementProgressBar"></div></div>
       <div id="sceneList"></div>
       <div id="arrangementStatus">Add the current system, a local preset, or one or more exported JSON settings.</div>
+      <button id="arrangementWav" class="secondary" type="button" disabled>↓ Export to WAV</button>
       <input id="arrangementFile" type="file" accept="application/json,.json" multiple hidden />
     </div>
   </aside>
@@ -424,6 +548,13 @@
       <div id="mixerStatus">Imported JSON restores these strips with the composer settings.</div>
     </div>
   </aside>
+  </main>
+
+  <nav id="mobileDeckNav" aria-label="Composer panels">
+    <button type="button" data-deck-card="0">Arrange</button>
+    <button type="button" data-deck-card="1">Mix</button>
+    <button type="button" data-deck-card="2">System</button>
+  </nav>
 
   <div id="legend">Fractal frame = mixed Julia field<br />Orbit nodes = harmonic systems<br />Ring = central attractor</div>
   <div id="error" role="alert"></div>
@@ -611,8 +742,8 @@
       arranger: $("arranger"), arrangerCollapse: $("arrangerCollapse"), arrangementPlay: $("arrangementPlay"), arrangementAddCurrent: $("arrangementAddCurrent"),
       arrangementAddPreset: $("arrangementAddPreset"), arrangementImport: $("arrangementImport"), arrangementExport: $("arrangementExport"), arrangementClear: $("arrangementClear"),
       arrangementLoop: $("arrangementLoop"), arrangementSummary: $("arrangementSummary"), arrangementProgressBar: $("arrangementProgressBar"),
-      sceneList: $("sceneList"), arrangementStatus: $("arrangementStatus"), arrangementFile: $("arrangementFile"),
-      visualToggle: $("visualToggle")
+      sceneList: $("sceneList"), arrangementStatus: $("arrangementStatus"), arrangementFile: $("arrangementFile"), arrangementWav: $("arrangementWav"),
+      visualToggle: $("visualToggle"), panelDeck: $("panelDeck"), mobileDeckNav: $("mobileDeckNav")
     };
     const ctx = els.canvas.getContext("2d", { alpha: false, desynchronized: true });
     const fractalCanvas = document.createElement("canvas");
@@ -626,7 +757,7 @@
       fractalReady: false, visualTime: 0, lastFrame: performance.now(), recentNotes: [],
       renderScale: 1, nextRenderAt: 0, fftData: new Float32Array(64), transportStep: 0,
       stopTimer: null, rebuildTimer: null, mixer: createDefaultMixer(), presets: [], autoSaveTimer: null,
-      arrangement: createDefaultArrangement(), sceneTransition: null, visualsEnabled: true
+      arrangement: createDefaultArrangement(), sceneTransition: null, visualsEnabled: true, wavExporting: false
     };
 
     function controlValue(id) { return Number(els[id].value); }
@@ -1042,10 +1173,291 @@
       setTimeout(() => URL.revokeObjectURL(link.href), 1000);
       setStatus(`Exported ${state.arrangement.scenes.length}-scene arrangement`);
     }
+
+
+    // ---------------------------------------------------------------------
+    // Offline arrangement WAV renderer
+    // ---------------------------------------------------------------------
+    const WAV_EXPORT_SAMPLE_RATE = 44100;
+    const WAV_EXPORT_WARNING_SECONDS = 300;
+    const WAV_EXPORT_HARD_LIMIT_SECONDS = 900;
+
+    function snapshotNumber(settings, id, fallback) {
+      const value = Number(settings?.controls?.[id]);
+      return Number.isFinite(value) ? value : fallback;
+    }
+    function notationSeconds(value, bpm) {
+      if (Number.isFinite(Number(value))) return Math.max(.001, Number(value));
+      const text = String(value || "").trim();
+      const quarter = 60 / clamp(Number(bpm) || 72, 20, 240);
+      let match = text.match(/^(\d+(?:\.\d+)?)m$/i);
+      if (match) return Number(match[1]) * 4 * quarter;
+      match = text.match(/^(\d+(?:\.\d+)?)n(\.)?$/i);
+      if (match) return (4 / Number(match[1])) * quarter * (match[2] ? 1.5 : 1);
+      match = text.match(/^(\d+(?:\.\d+)?)t$/i);
+      if (match) return (4 / Number(match[1])) * quarter * (2 / 3);
+      const parsed = Number.parseFloat(text);
+      return Number.isFinite(parsed) ? Math.max(.001, parsed) : quarter;
+    }
+    function snapshotVelocity(value, settings) {
+      const minDb = clamp(snapshotNumber(settings, "dynamicMin", -36), -60, -3);
+      return clamp(Math.max(Number(value) || 0, dbToGain(minDb)), .0001, 1);
+    }
+    function equalPowerCurve(from, to, points = 96) {
+      const curve = new Float32Array(points);
+      for (let i = 0; i < points; i++) {
+        const t = i / (points - 1);
+        curve[i] = from < to ? Math.sin(t * Math.PI * .5) : Math.cos(t * Math.PI * .5);
+      }
+      return curve;
+    }
+    function setOfflineGainCurve(param, start, duration, from, to) {
+      const at = Math.max(0, Number(start) || 0);
+      const span = Math.max(0, Number(duration) || 0);
+      if (typeof param.setValueAtTime === "function") param.setValueAtTime(from, at);
+      else param.value = from;
+      if (span <= .001) {
+        if (typeof param.setValueAtTime === "function") param.setValueAtTime(to, at);
+        else param.value = to;
+        return;
+      }
+      if (typeof param.setValueCurveAtTime === "function") {
+        param.setValueCurveAtTime(equalPowerCurve(from, to), at, span);
+      } else if (typeof param.linearRampToValueAtTime === "function") {
+        param.linearRampToValueAtTime(to, at + span);
+      } else {
+        param.value = to;
+      }
+    }
+    function buildWavRenderPlan() {
+      const scenes = state.arrangement.scenes;
+      if (!scenes.length) return null;
+      const plans = [];
+      let holdStart = 0;
+      let priorTransition = 0;
+      for (let index = 0; index < scenes.length; index++) {
+        const scene = scenes[index];
+        const transitionOut = (index < scenes.length - 1 || state.arrangement.loop) ? Math.max(0, Number(scene.transition) || 0) : 0;
+        const audioStart = index === 0 ? 0 : Math.max(0, holdStart - priorTransition);
+        const fadeIn = index === 0 ? 0 : priorTransition;
+        const fadeOutStart = holdStart + Math.max(5, Number(scene.duration) || 5);
+        const fadeOutEnd = fadeOutStart + transitionOut;
+        plans.push({ scene, index, audioStart, holdStart, fadeIn, fadeOutStart, fadeOut: transitionOut, fadeOutEnd, scheduleEnd: fadeOutEnd, loopReturn: false });
+        priorTransition = transitionOut;
+        holdStart = fadeOutEnd;
+      }
+      const arrangementEnd = holdStart;
+      const allFadeOuts = scenes.flatMap(scene => Object.values(sanitizeMixer(scene.settings?.mixer)).map(track => track.fadeOut));
+      const tail = clamp(Math.max(6, ...allFadeOuts), 6, 16);
+      if (state.arrangement.loop) {
+        const closingTransition = Math.max(0, Number(scenes[scenes.length - 1].transition) || 0);
+        plans.push({
+          scene: scenes[0], index: 0, audioStart: Math.max(0, arrangementEnd - closingTransition), holdStart: arrangementEnd,
+          fadeIn: closingTransition, fadeOutStart: arrangementEnd, fadeOut: tail, fadeOutEnd: arrangementEnd + tail,
+          scheduleEnd: arrangementEnd, loopReturn: true
+        });
+      } else {
+        const finalPlan = plans[plans.length - 1];
+        finalPlan.fadeOutStart = arrangementEnd;
+        finalPlan.fadeOut = tail;
+        finalPlan.fadeOutEnd = arrangementEnd + tail;
+        finalPlan.scheduleEnd = arrangementEnd;
+      }
+      return { plans, arrangementEnd, tail, renderDuration: arrangementEnd + tail + .35 };
+    }
+    function createOfflineSceneGraph(plan, destination, readyPromises) {
+      const settings = plan.scene.settings || {};
+      const mixer = sanitizeMixer(settings.mixer);
+      const bpm = clamp(snapshotNumber(settings, "tempo", 72), 20, 240);
+      const brightness = clamp(snapshotNumber(settings, "brightness", .45), 0, 1);
+      const gravity = clamp(snapshotNumber(settings, "gravity", .3), 0, 1);
+      const reverbAmount = clamp(snapshotNumber(settings, "reverb", .4), 0, 1);
+      const anySolo = Object.values(mixer).some(track => track.solo);
+      const sceneFade = new Tone.Gain(0).connect(destination);
+      const master = new Tone.Gain(.7).connect(sceneFade);
+      const reverb = new Tone.Reverb({ decay: 10, preDelay: .08, wet: reverbAmount }).connect(master);
+      if (reverb.ready && typeof reverb.ready.then === "function") readyPromises.push(reverb.ready);
+      const delay = new Tone.PingPongDelay({
+        delayTime: notationSeconds("8n.", bpm), feedback: .16 + gravity * .28, wet: .08 + gravity * .27
+      }).connect(reverb);
+      const filter = new Tone.Filter({ type: "lowpass", frequency: 700 + brightness * 3500, Q: 1.2, rolloff: -24 }).connect(delay);
+      const dry = new Tone.Gain(.48).connect(master);
+      filter.connect(dry);
+      const trackGains = {};
+      for (const key of Object.keys(TRACK_DEFS)) {
+        const mix = mixer[key];
+        const silent = mix.mute || (anySolo && !mix.solo);
+        const target = silent ? 0 : dbToGain(mix.level);
+        const route = key === "melody" ? delay : (key === "noise" ? reverb : filter);
+        trackGains[key] = new Tone.Gain(target).connect(route);
+      }
+      const lfo = new Tone.LFO({ frequency: .035, min: 150 + brightness * 260, max: 700 + brightness * 4200, phase: 180 }).start(plan.audioStart);
+      lfo.connect(filter.frequency);
+
+      const drone = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "sine" }, envelope: { attack: mixer.drone.fadeIn, decay: 3, sustain: .78, release: mixer.drone.fadeOut }
+      }).connect(trackGains.drone);
+      drone.maxPolyphony = 12; drone.volume.value = -11;
+      const haze = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "triangle" }, envelope: { attack: mixer.haze.fadeIn, decay: 4, sustain: .3, release: mixer.haze.fadeOut }
+      }).connect(trackGains.haze);
+      haze.maxPolyphony = 10; haze.volume.value = -19;
+      const melody = new Tone.PolySynth(Tone.FMSynth, {
+        harmonicity: 1.25, modulationIndex: 2.2, oscillator: { type: "sine" }, modulation: { type: "sine" },
+        envelope: { attack: mixer.melody.fadeIn, decay: 1.4, sustain: .06, release: mixer.melody.fadeOut },
+        modulationEnvelope: { attack: .2, decay: 1.2, sustain: .05, release: 2 }
+      }).connect(trackGains.melody);
+      melody.maxPolyphony = 12; melody.volume.value = -15;
+      const bass = new Tone.MonoSynth({
+        oscillator: { type: "sine" }, filter: { type: "lowpass", Q: 1, rolloff: -24 },
+        envelope: { attack: mixer.bass.fadeIn, decay: 2, sustain: .55, release: mixer.bass.fadeOut },
+        filterEnvelope: { attack: 1, decay: 2, sustain: .3, release: 5, baseFrequency: 90, octaves: 2.2 }
+      }).connect(trackGains.bass);
+      bass.volume.value = -9;
+      const noise = new Tone.NoiseSynth({
+        noise: { type: "pink" }, envelope: { attack: mixer.noise.fadeIn, decay: 3.5, sustain: 0, release: mixer.noise.fadeOut }
+      }).connect(trackGains.noise);
+      noise.volume.value = -27;
+
+      if (plan.fadeIn > .001) setOfflineGainCurve(sceneFade.gain, plan.audioStart, plan.fadeIn, 0, 1);
+      else if (typeof sceneFade.gain.setValueAtTime === "function") sceneFade.gain.setValueAtTime(1, plan.audioStart);
+      else sceneFade.gain.value = 1;
+      setOfflineGainCurve(sceneFade.gain, plan.fadeOutStart, plan.fadeOut, 1, 0);
+      return { settings, mixer, bpm, drone, haze, melody, bass, noise };
+    }
+    function scheduleOfflineScene(plan, graph) {
+      const composition = graph.settings.composition;
+      if (!composition) return;
+      const start = plan.audioStart;
+      const end = Math.max(start, plan.scheduleEnd);
+      const duration = (value, track) => Math.max(.02, notationSeconds(value, graph.bpm) * graph.mixer[track].duration);
+      const seeded = mulberry32(hashSeed(`${graph.settings.seed || plan.scene.name}:wav:${plan.loopReturn ? "loop" : plan.index}`));
+
+      const droneEvery = notationSeconds("4m", graph.bpm);
+      for (let time = start, cycle = 0; time < end; time += droneEvery, cycle++) {
+        const notes = cycle % 2 ? [...(composition.drone || [])].reverse() : (composition.drone || []);
+        if (notes.length) graph.drone.triggerAttackRelease(notes, duration("6m", "drone"), time, snapshotVelocity(.45, graph.settings));
+      }
+      const hazeEvery = notationSeconds("4m", graph.bpm);
+      if (plan.fadeIn > .001 && composition.upperDrone?.length) {
+        graph.haze.triggerAttackRelease(composition.upperDrone, duration("3m", "haze"), start, snapshotVelocity(.16, graph.settings));
+      }
+      for (let time = start + notationSeconds("2m", graph.bpm); time < end; time += hazeEvery) {
+        if (composition.upperDrone?.length) graph.haze.triggerAttackRelease(composition.upperDrone, duration("3m", "haze"), time, snapshotVelocity(.2, graph.settings));
+      }
+      const bassEvery = notationSeconds("2m", graph.bpm);
+      for (let time = start, step = 0; time < end; time += bassEvery, step += 16) {
+        const note = (step / 16) % 2 < 1 ? composition.bass : composition.altBass;
+        if (note) graph.bass.triggerAttackRelease(note, duration("2m", "bass"), time, snapshotVelocity(.45, graph.settings));
+      }
+      const melodyEvery = notationSeconds("8n", graph.bpm);
+      const melody = composition.melody || [];
+      for (let time = start, step = 0; time < end; time += melodyEvery, step++) {
+        const item = melody.length ? melody[step % melody.length] : null;
+        if (item?.active) {
+          const bright = clamp(snapshotNumber(graph.settings, "brightness", .45), 0, 1);
+          const velocity = snapshotVelocity(item.velocity * (.65 + bright * .55), graph.settings);
+          graph.melody.triggerAttackRelease(item.note, duration(item.duration, "melody"), time, velocity);
+        }
+        if (step % 16 === 12 && seeded() < .34) {
+          graph.noise.triggerAttackRelease(duration("2n", "noise"), time, snapshotVelocity(.09, graph.settings));
+        }
+      }
+    }
+    function wavBlobFromRenderedBuffer(rendered) {
+      const nativeBuffer = typeof rendered?.get === "function" ? rendered.get() : rendered;
+      if (!nativeBuffer || typeof nativeBuffer.getChannelData !== "function") throw new Error("The offline renderer did not return a readable audio buffer.");
+      const channels = Math.max(1, Math.min(2, nativeBuffer.numberOfChannels || 1));
+      const frames = nativeBuffer.length;
+      const sampleRate = nativeBuffer.sampleRate || WAV_EXPORT_SAMPLE_RATE;
+      const bytesPerSample = 2;
+      const blockAlign = channels * bytesPerSample;
+      const array = new ArrayBuffer(44 + frames * blockAlign);
+      const view = new DataView(array);
+      const writeText = (offset, text) => { for (let i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i)); };
+      writeText(0, "RIFF"); view.setUint32(4, 36 + frames * blockAlign, true); writeText(8, "WAVE");
+      writeText(12, "fmt "); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, channels, true);
+      view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate * blockAlign, true); view.setUint16(32, blockAlign, true); view.setUint16(34, 16, true);
+      writeText(36, "data"); view.setUint32(40, frames * blockAlign, true);
+      const channelData = Array.from({ length: channels }, (_, channel) => nativeBuffer.getChannelData(channel));
+      let offset = 44;
+      for (let frame = 0; frame < frames; frame++) {
+        for (let channel = 0; channel < channels; channel++) {
+          const sample = clamp(channelData[channel][frame] || 0, -1, 1);
+          view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+          offset += 2;
+        }
+      }
+      return new Blob([array], { type: "audio/wav" });
+    }
+    async function exportArrangementWav() {
+      if (state.wavExporting) return;
+      if (!window.Tone || typeof Tone.Offline !== "function") return setStatus("Tone.js offline rendering is unavailable. Reload with a network connection.", true);
+      const renderPlan = buildWavRenderPlan();
+      if (!renderPlan) return setStatus("Add at least one scene before exporting WAV", true);
+      if (renderPlan.renderDuration > WAV_EXPORT_HARD_LIMIT_SECONDS) {
+        return setStatus(`WAV export is limited to ${formatClock(WAV_EXPORT_HARD_LIMIT_SECONDS)} per file to protect browser memory. Shorten the arrangement and try again.`, true);
+      }
+      if (renderPlan.renderDuration > WAV_EXPORT_WARNING_SECONDS) {
+        const estimatedMb = Math.ceil(renderPlan.renderDuration * WAV_EXPORT_SAMPLE_RATE * 2 * 2 / 1048576);
+        if (!window.confirm(`This export is ${formatClock(renderPlan.renderDuration)} and will use substantial memory (about ${estimatedMb} MB for the final WAV, plus render memory). Continue?`)) return;
+      }
+      state.wavExporting = true;
+      els.arrangementWav.disabled = true;
+      els.arrangementWav.classList.add("rendering");
+      els.arrangementWav.textContent = "Rendering WAV";
+      const loopNote = state.arrangement.loop ? " · one complete loop cycle" : "";
+      setStatus(`Rendering ${formatClock(renderPlan.arrangementEnd)} offline${loopNote}. Audio playback can continue, but this may use significant CPU and memory.`);
+      await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+      const startedAt = performance.now();
+      let timer = setInterval(() => {
+        const elapsed = (performance.now() - startedAt) / 1000;
+        els.arrangementWav.textContent = `Rendering · ${formatClock(elapsed)}`;
+      }, 1000);
+      try {
+        const ceilings = renderPlan.plans.map(plan => snapshotNumber(plan.scene.settings, "dynamicMax", -6));
+        const limiterCeiling = clamp(Math.min(...ceilings), -18, 0);
+        const rendered = await Tone.Offline(async () => {
+          const limiter = new Tone.Limiter(limiterCeiling).toDestination();
+          const destination = new Tone.Gain(.92).connect(limiter);
+          const readyPromises = [];
+          for (const plan of renderPlan.plans) {
+            const graph = createOfflineSceneGraph(plan, destination, readyPromises);
+            scheduleOfflineScene(plan, graph);
+          }
+          if (readyPromises.length) await Promise.all(readyPromises);
+        }, renderPlan.renderDuration, 2, WAV_EXPORT_SAMPLE_RATE);
+        clearInterval(timer); timer = null;
+        els.arrangementWav.textContent = "Encoding WAV";
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        const blob = wavBlobFromRenderedBuffer(rendered);
+        const link = document.createElement("a");
+        const baseName = `${state.arrangement.scenes[0]?.name || state.composition?.name || "julia-drone"}-arrangement`;
+        const safe = baseName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "julia-drone-arrangement";
+        link.download = `${safe}.wav`;
+        link.href = URL.createObjectURL(blob);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(link.href), 5000);
+        setStatus(`Exported ${formatClock(renderPlan.arrangementEnd)} WAV · ${(blob.size / 1048576).toFixed(1)} MB · ${WAV_EXPORT_SAMPLE_RATE / 1000} kHz / 16-bit stereo`);
+      } catch (error) {
+        console.error(error);
+        setStatus(error?.message || "WAV export failed", true);
+        showError(`WAV export failed: ${error?.message || error}`);
+      } finally {
+        if (timer) clearInterval(timer);
+        state.wavExporting = false;
+        els.arrangementWav.classList.remove("rendering");
+        els.arrangementWav.textContent = "↓ Export to WAV";
+        els.arrangementWav.disabled = !state.arrangement.scenes.length;
+      }
+    }
     function renderArrangementUI() {
       const scenes = state.arrangement.scenes;
       els.arrangementLoop.checked = Boolean(state.arrangement.loop);
       els.arrangementSummary.textContent = `${scenes.length} scene${scenes.length === 1 ? "" : "s"} · ${formatClock(arrangementDuration())}`;
+      if (els.arrangementWav) els.arrangementWav.disabled = !scenes.length || state.wavExporting;
       if (!scenes.length) {
         els.sceneList.innerHTML = '<div class="scene-empty">No scenes yet. Add the current system, a local preset, or import exported settings JSON.</div>';
       } else {
@@ -1941,6 +2353,75 @@
     }
 
     // ---------------------------------------------------------------------
+    // Portrait swipeable panel deck
+    // ---------------------------------------------------------------------
+    const MOBILE_DECK_STORAGE_KEY = "julia-drone-mobile-card-v1";
+    let mobileDeckRaf = 0;
+    let mobileDeckIndex = 2;
+
+    function isPortraitDeck() {
+      return window.matchMedia("(orientation: portrait)").matches;
+    }
+
+    function mobileDeckCards() {
+      return [els.arranger, els.mixer, els.panel];
+    }
+
+    function setMobileDeckIndicator(index) {
+      mobileDeckIndex = clamp(Number(index) || 0, 0, 2);
+      index = mobileDeckIndex;
+      const buttons = els.mobileDeckNav?.querySelectorAll("[data-deck-card]") || [];
+      buttons.forEach((button, buttonIndex) => {
+        const active = buttonIndex === index;
+        button.classList.toggle("active", active);
+        if (active) button.setAttribute("aria-current", "page");
+        else button.removeAttribute("aria-current");
+      });
+      try { localStorage.setItem(MOBILE_DECK_STORAGE_KEY, String(index)); } catch (_) {}
+    }
+
+    function nearestMobileDeckIndex() {
+      if (!els.panelDeck) return 0;
+      const deckCenter = els.panelDeck.scrollLeft + els.panelDeck.clientWidth / 2;
+      let nearest = 0, distance = Infinity;
+      mobileDeckCards().forEach((card, index) => {
+        const center = card.offsetLeft + card.offsetWidth / 2;
+        const nextDistance = Math.abs(center - deckCenter);
+        if (nextDistance < distance) { distance = nextDistance; nearest = index; }
+      });
+      return nearest;
+    }
+
+    function scrollToMobileDeckCard(index, behavior = "smooth") {
+      if (!els.panelDeck || !isPortraitDeck()) return;
+      const cards = mobileDeckCards();
+      const safeIndex = clamp(Number(index) || 0, 0, cards.length - 1);
+      const card = cards[safeIndex];
+      const left = card.offsetLeft - (els.panelDeck.clientWidth - card.offsetWidth) / 2;
+      els.panelDeck.scrollTo({ left, behavior });
+      setMobileDeckIndicator(safeIndex);
+    }
+
+    function updateMobileDeckFromScroll() {
+      if (mobileDeckRaf) return;
+      mobileDeckRaf = requestAnimationFrame(() => {
+        mobileDeckRaf = 0;
+        if (isPortraitDeck()) setMobileDeckIndicator(nearestMobileDeckIndex());
+      });
+    }
+
+    function initializeMobileDeck() {
+      if (!els.panelDeck || !els.mobileDeckNav) return;
+      let initialIndex = mobileDeckIndex; // Start on System so transport is immediately accessible.
+      try {
+        const storedValue = localStorage.getItem(MOBILE_DECK_STORAGE_KEY);
+        const stored = storedValue === null ? NaN : Number(storedValue);
+        if (Number.isInteger(stored)) initialIndex = clamp(stored, 0, 2);
+      } catch (_) {}
+      requestAnimationFrame(() => scrollToMobileDeckCard(initialIndex, "auto"));
+    }
+
+    // ---------------------------------------------------------------------
     // Events
     // ---------------------------------------------------------------------
     els.play.addEventListener("click", togglePlayback);
@@ -1985,6 +2466,7 @@
     els.arrangementAddPreset.addEventListener("click", addSelectedPresetToArrangement);
     els.arrangementImport.addEventListener("click", () => els.arrangementFile.click());
     els.arrangementExport.addEventListener("click", exportArrangementJson);
+    els.arrangementWav.addEventListener("click", exportArrangementWav);
     els.arrangementFile.addEventListener("change", () => importArrangementFiles(els.arrangementFile.files));
     els.arrangementLoop.addEventListener("change", () => {
       state.arrangement.loop = els.arrangementLoop.checked;
@@ -2062,6 +2544,20 @@
       scheduleAutoSave();
     });
 
+    els.mobileDeckNav?.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-deck-card]");
+      if (!button) return;
+      scrollToMobileDeckCard(Number(button.dataset.deckCard));
+    });
+    els.panelDeck?.addEventListener("scroll", updateMobileDeckFromScroll, { passive: true });
+    const portraitDeckQuery = window.matchMedia("(orientation: portrait)");
+    const handleDeckOrientation = () => {
+      if (!portraitDeckQuery.matches) return;
+      requestAnimationFrame(() => scrollToMobileDeckCard(mobileDeckIndex, "auto"));
+    };
+    if (portraitDeckQuery.addEventListener) portraitDeckQuery.addEventListener("change", handleDeckOrientation);
+    else portraitDeckQuery.addListener(handleDeckOrientation);
+
     els.canvas.addEventListener("pointerdown", (e) => {
       state.pointer.x = e.clientX / state.width; state.pointer.y = e.clientY / state.height;
       state.pointer.active = true; state.pointer.strength = 1;
@@ -2102,6 +2598,7 @@
     if (state.visualsEnabled) initWorker();
     updateVisualToggleUI();
     resize();
+    initializeMobileDeck();
     if (!loadLastSettings()) generateComposition();
     requestAnimationFrame(frame);
   })();
