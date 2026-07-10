@@ -164,7 +164,7 @@
       background: var(--panel); backdrop-filter: blur(25px) saturate(130%); box-shadow: var(--shadow);
       transform: translateX(-50%); transition: transform .35s ease, opacity .35s ease;
     }
-    #mixer.collapsed { transform: translate(-50%, calc(-100% + 58px)); }
+    #mixer.collapsed { transform: translate(-50%, calc(100% - 58px)); }
     .mixer-head { min-height: 57px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 12px 11px 15px; border-bottom: 1px solid var(--line); }
     .mixer-title { min-width: 0; }
     .mixer-title strong { display: block; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
@@ -193,7 +193,7 @@
       background: var(--panel-strong); backdrop-filter: blur(25px) saturate(130%); box-shadow: var(--shadow);
       transition: transform .35s ease, opacity .35s ease;
     }
-    #arranger.collapsed { transform: translateX(calc(-100% + 58px)); }
+    #arranger.collapsed { transform: translateY(calc(100% - 58px)); }
     .arranger-head { min-height: 57px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 12px 11px 15px; border-bottom: 1px solid var(--line); }
     .arranger-title { min-width: 0; }
     .arranger-title strong { display: block; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
@@ -255,10 +255,10 @@
       #panel.collapsed { transform: translateY(calc(100% - 58px)); }
       #visualToggle { top: max(66px, calc(env(safe-area-inset-top) + 52px)); min-width: 118px; height: 31px; padding: 0 11px; font-size: 9px; }
       #arranger { left: 10px; top: max(92px, calc(env(safe-area-inset-top) + 72px)); width: calc(100vw - 20px); max-height: 55vh; }
-      #arranger.collapsed { transform: translateX(calc(-100% + 50px)); }
+      #arranger.collapsed { transform: translateY(calc(100% - 50px)); }
       .arranger-body { max-height: calc(55vh - 58px); }
       #mixer { left: 50%; top: max(112px, calc(env(safe-area-inset-top) + 92px)); width: calc(100vw - 20px); min-width: 0; max-height: 54vh; }
-      #mixer.collapsed { transform: translate(-50%, calc(-100% + 50px)); }
+      #mixer.collapsed { transform: translate(-50%, calc(100% - 50px)); }
       .mixer-body { max-height: calc(54vh - 58px); }
       #legend { display: none; }
       .panel-body { max-height: 58vh; }
@@ -409,7 +409,7 @@
     <div class="arranger-head">
       <div class="arranger-title"><strong>Arrangement composer</strong><span>Sequence settings · hold · crossfade</span></div>
       <div class="arranger-head-actions">
-        <button id="arrangerCollapse" class="icon-button" type="button" title="Collapse arranger" aria-label="Collapse arranger">‹</button>
+        <button id="arrangerCollapse" class="icon-button" type="button" title="Hide arranger to bottom" aria-label="Hide arranger to bottom">⌄</button>
       </div>
     </div>
     <div class="arranger-body">
@@ -437,7 +437,7 @@
     <div class="panel-head">
       <div class="transport">
         <button id="play" class="primary" type="button">▶ Start</button>
-        <button id="collapse" class="icon-button" type="button" aria-label="Collapse controls" title="Collapse controls">⌄</button>
+        <button id="collapse" class="icon-button" type="button" aria-label="Hide system controls to bottom" title="Hide system controls to bottom">⌄</button>
       </div>
       <div class="now">
         <div id="pieceName">Uninitialized field</div>
@@ -526,8 +526,16 @@
           <div class="label-row"><label for="dynamicMax">Dynamic maximum</label><output id="dynamicMaxOut">−6 dB</output></div>
           <input id="dynamicMax" type="range" min="-18" max="-1" step="1" value="-6" />
         </div>
+        <div class="control wide">
+          <div class="label-row"><label for="bufferSafety">Buffer safety</label><output id="bufferSafetyOut">Auto</output></div>
+          <select id="bufferSafety">
+            <option value="auto" selected>Auto · adaptive</option>
+            <option value="safe">Safe · more look-ahead</option>
+            <option value="maximum">Maximum · mobile performance</option>
+          </select>
+        </div>
       </div>
-      <div class="hint">Settings autosave locally and can be exported as portable JSON with the exact generated systems and mixer strips. Dynamic minimum raises only the quietest note level; dynamic maximum sets the final output ceiling. Space: play/stop · V: visuals · R: new seed · G: regenerate · click the field to bend the attractor.</div>
+      <div class="hint">Settings autosave locally and can be exported as portable JSON with the exact generated systems and mixer strips. Buffer safety schedules audio farther ahead, guards late notes, and temporarily sheds visuals/melody if an underrun or severe scheduler stall is detected. Dynamic minimum raises only the quietest note level; dynamic maximum sets the final output ceiling. Space: play/stop · V: visuals · R: new seed · G: regenerate · click the field to bend the attractor.</div>
     </div>
   </section>
 
@@ -536,7 +544,7 @@
       <div class="mixer-title"><strong>Multitrack mixer</strong><span>Level · duration · fade dynamics</span></div>
       <div class="mixer-head-actions">
         <button id="mixerImport" class="icon-button" type="button" title="Import exported system settings" aria-label="Import exported system settings">⇩</button>
-        <button id="mixerCollapse" class="icon-button" type="button" title="Collapse mixer" aria-label="Collapse mixer">⌃</button>
+        <button id="mixerCollapse" class="icon-button" type="button" title="Hide mixer to bottom" aria-label="Hide mixer to bottom">⌄</button>
       </div>
     </div>
     <div class="mixer-body">
@@ -711,7 +719,7 @@
       drone:  { label: "Drone",  detail: "Lower harmonic bed", level: 0, duration: 1, fadeIn: 5.5, fadeOut: 9 },
       haze:   { label: "Haze",   detail: "Upper spectral layer", level: 0, duration: 1, fadeIn: 2.5, fadeOut: 10 },
       bass:   { label: "Bass",   detail: "Sub pulse", level: 0, duration: 1, fadeIn: 1.5, fadeOut: 6 },
-      melody: { label: "Melody", detail: "Fractal FM voice", level: 0, duration: 1, fadeIn: .06, fadeOut: 4.5 },
+      melody: { label: "Melody", detail: "Clickless sine voice", level: 0, duration: 1, fadeIn: .06, fadeOut: 4.5 },
       noise:  { label: "Noise",  detail: "Pink transition wash", level: 0, duration: 1, fadeIn: 1.8, fadeOut: 3 }
     };
     function createDefaultMixer() {
@@ -739,6 +747,146 @@
         release: Math.max(floor.release, Number(source?.fadeOut) || floor.release)
       };
     }
+
+    // The melody is intentionally built from one-shot sine oscillators rather
+    // than a reusable PolySynth voice pool. Every note starts at a sine-wave
+    // zero crossing behind a zero-gain envelope, ends at zero gain, and owns
+    // its oscillator until it has fully released. This removes FM sidebands,
+    // frequency jumps, retrigger discontinuities, and PolySynth voice stealing
+    // -- the four mechanisms that can produce a rare single-sample "chirp".
+    const MELODY_SAFETY = {
+      minHz: 110,
+      maxHz: 1400,
+      minAttack: .12,
+      minRelease: .18,
+      maxRelease: 6,
+      maxVoices: 96,
+      voiceDb: -15,
+      maxVelocity: .72
+    };
+    function safeMelodyFrequency(note) {
+      try {
+        let hz = Number(Tone.Frequency(note).toFrequency());
+        if (!Number.isFinite(hz) || hz <= 0) return 440;
+        while (hz > MELODY_SAFETY.maxHz) hz *= .5;
+        while (hz < MELODY_SAFETY.minHz) hz *= 2;
+        return clamp(hz, MELODY_SAFETY.minHz, MELODY_SAFETY.maxHz);
+      } catch {
+        return 440;
+      }
+    }
+    function createClicklessMelody(destination, initialEnvelope) {
+      let envelope = {
+        attack: Math.max(MELODY_SAFETY.minAttack, Number(initialEnvelope?.attack) || MELODY_SAFETY.minAttack),
+        release: Math.max(MELODY_SAFETY.minRelease, Number(initialEnvelope?.release) || MELODY_SAFETY.minRelease)
+      };
+      const active = new Set();
+      const toSeconds = (value) => {
+        if (Number.isFinite(Number(value))) return Math.max(.18, Number(value));
+        try { return Math.max(.18, Tone.Time(value).toSeconds()); }
+        catch { return .35; }
+      };
+      const cleanup = (voice) => {
+        if (!active.has(voice)) return;
+        active.delete(voice);
+        if (voice.timer) clearTimeout(voice.timer);
+        try { voice.osc.disconnect(); } catch {}
+        try { voice.gain.disconnect(); } catch {}
+        try { voice.osc.dispose(); } catch {}
+        try { voice.gain.dispose(); } catch {}
+      };
+      return {
+        triggerAttackRelease(note, duration, time, velocity = .5) {
+          // Graceful note shedding is silent; unlike voice stealing, it never
+          // cuts an active waveform at a non-zero sample.
+          if (active.size >= bufferSafetyVoiceLimit()) return false;
+          const start = Number.isFinite(Number(time)) ? Number(time) : Tone.now();
+          const hold = toSeconds(duration);
+          const attack = Math.min(Math.max(MELODY_SAFETY.minAttack, envelope.attack), Math.max(MELODY_SAFETY.minAttack, hold * .72));
+          const release = clamp(envelope.release, MELODY_SAFETY.minRelease, MELODY_SAFETY.maxRelease);
+          const attackEnd = start + attack;
+          const decayEnd = Math.min(start + hold, attackEnd + Math.max(.04, Math.min(.45, hold * .2)));
+          const releaseStart = Math.max(start + hold, decayEnd + .02);
+          const end = releaseStart + release;
+          const peak = clamp(Number(velocity) || 0, 0, MELODY_SAFETY.maxVelocity) * Math.pow(10, MELODY_SAFETY.voiceDb / 20);
+          if (peak <= 0) return false;
+
+          const gain = new Tone.Gain(0).connect(destination);
+          const osc = new Tone.Oscillator({
+            frequency: safeMelodyFrequency(note),
+            type: "sine",
+            phase: 0
+          }).connect(gain);
+          const param = gain.gain;
+          param.cancelScheduledValues(start);
+          param.setValueAtTime(0, start);
+          param.linearRampToValueAtTime(peak, attackEnd);
+          if (decayEnd > attackEnd + .001) param.linearRampToValueAtTime(peak * .14, decayEnd);
+          param.setValueAtTime(peak * .14, releaseStart);
+          param.linearRampToValueAtTime(0, end);
+
+          const voice = { osc, gain, end, timer: null };
+          active.add(voice);
+          osc.onstop = () => cleanup(voice);
+          osc.start(start);
+          osc.stop(end + .025);
+          // Tone.Source normally invokes onstop. The timer is a defensive
+          // live-context cleanup for older mobile Web Audio implementations.
+          try {
+            const raw = Tone.getContext?.().rawContext;
+            const isOffline = /Offline/i.test(raw?.constructor?.name || "");
+            if (!isOffline) voice.timer = setTimeout(() => cleanup(voice), Math.max(250, (end - Tone.now() + .2) * 1000));
+          } catch {}
+          return true;
+        },
+        releaseAll(time = Tone.now()) {
+          const at = Number.isFinite(Number(time)) ? Number(time) : Tone.now();
+          for (const voice of [...active]) {
+            try {
+              const param = voice.gain.gain;
+              if (typeof param.cancelAndHoldAtTime === "function") param.cancelAndHoldAtTime(at);
+              else {
+                param.cancelScheduledValues(at);
+                param.setValueAtTime(Math.max(0, Number(param.value) || 0), at);
+              }
+              param.linearRampToValueAtTime(0, at + .08);
+              voice.osc.stop(at + .1);
+            } catch {
+              cleanup(voice);
+            }
+          }
+        },
+        set(config = {}) {
+          const next = config.envelope || {};
+          envelope = {
+            attack: Math.max(MELODY_SAFETY.minAttack, Number(next.attack) || envelope.attack),
+            release: clamp(Number(next.release) || envelope.release, MELODY_SAFETY.minRelease, MELODY_SAFETY.maxRelease)
+          };
+        },
+        get activeVoices() { return active.size; }
+      };
+    }
+    const BUFFER_SAFETY_PROFILES = {
+      safe: {
+        label: "Safe", lookAhead: .26, updateInterval: .045, eventLead: .014,
+        visualReliefMs: 7000, shedSeconds: 2.5, renderScaleCap: .86,
+        melodyVoices: 48, droneVoices: 18, hazeVoices: 14, bassVoices: 6
+      },
+      maximum: {
+        label: "Maximum", lookAhead: .42, updateInterval: .07, eventLead: .024,
+        visualReliefMs: 13000, shedSeconds: 5, renderScaleCap: .68,
+        melodyVoices: 24, droneVoices: 12, hazeVoices: 10, bassVoices: 4
+      }
+    };
+
+    function createDefaultBufferSafetyState() {
+      return {
+        profile: null, autoLevel: 0, monitorTimer: null, visualResumeTimer: null,
+        visualSuppressed: false, shedUntil: 0, lastMonitorAt: performance.now(),
+        lastUnderrunEvents: 0, stressCount: 0, lastStressAt: 0, contextListener: null
+      };
+    }
+
     function createDefaultArrangement() {
       return {
         scenes: [], loop: false, running: false, activeIndex: -1, phase: "idle",
@@ -753,7 +901,7 @@
     const els = {
       canvas: $("stage"), panel: $("panel"), play: $("play"), collapse: $("collapse"), generate: $("generate"), save: $("save"), seed: $("seed"),
       key: $("key"), scale: $("scale"), tempo: $("tempo"), systems: $("systems"), density: $("density"), drift: $("drift"), gravity: $("gravity"),
-      reverb: $("reverb"), brightness: $("brightness"), motion: $("motion"), dynamicMin: $("dynamicMin"), dynamicMax: $("dynamicMax"), pieceName: $("pieceName"), pieceMeta: $("pieceMeta"),
+      reverb: $("reverb"), brightness: $("brightness"), motion: $("motion"), dynamicMin: $("dynamicMin"), dynamicMax: $("dynamicMax"), bufferSafety: $("bufferSafety"), pieceName: $("pieceName"), pieceMeta: $("pieceMeta"),
       audioChip: $("audioChip"), renderChip: $("renderChip"), cChip: $("cChip"), error: $("error"),
       presetName: $("presetName"), presetSelect: $("presetSelect"), savePreset: $("savePreset"), loadPreset: $("loadPreset"), deletePreset: $("deletePreset"),
       exportSettings: $("exportSettings"), importSettings: $("importSettings"), settingsFile: $("settingsFile"), settingsStatus: $("settingsStatus"),
@@ -777,7 +925,8 @@
       fractalReady: false, visualTime: 0, lastFrame: performance.now(), recentNotes: [],
       renderScale: 1, nextRenderAt: 0, fftData: new Float32Array(64), transportStep: 0,
       stopTimer: null, rebuildTimer: null, mixer: createDefaultMixer(), presets: [], autoSaveTimer: null,
-      arrangement: createDefaultArrangement(), sceneTransition: null, visualsEnabled: true, wavExporting: false
+      arrangement: createDefaultArrangement(), sceneTransition: null, visualsEnabled: true, wavExporting: false,
+      bufferSafety: createDefaultBufferSafetyState()
     };
 
     function controlValue(id) { return Number(els[id].value); }
@@ -816,12 +965,13 @@
       const dynamics = normalizeDynamicRange();
       $("dynamicMinOut").value = `${dynamics.minDb < 0 ? "−" : "+"}${Math.abs(dynamics.minDb)} dB`;
       $("dynamicMaxOut").value = `${dynamics.maxDb < 0 ? "−" : "+"}${Math.abs(dynamics.maxDb)} dB`;
+      updateBufferSafetyOutput();
     }
 
     // ---------------------------------------------------------------------
     // Settings persistence, JSON interchange, and mixer UI
     // ---------------------------------------------------------------------
-    const CONTROL_IDS = ["key","scale","tempo","systems","density","drift","gravity","reverb","brightness","motion","dynamicMin","dynamicMax"];
+    const CONTROL_IDS = ["key","scale","tempo","systems","density","drift","gravity","reverb","brightness","motion","dynamicMin","dynamicMax","bufferSafety"];
 
     function cloneJson(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }
     function setStatus(message, isError = false) {
@@ -943,6 +1093,7 @@
       state.mixer = sanitizeMixer(data.mixer);
       renderMixerUI();
       updateOutputs();
+      applyBufferSafetyProfile();
       generateComposition(els.seed.value.trim() || "dendrite", { skipRestart: Boolean(options.skipRestart), skipAutosave: true });
       restoreGeneratedSnapshot(data);
       if (data.arrangement && !options.skipArrangement) {
@@ -1303,17 +1454,18 @@
       const filter = new Tone.Filter({ type: "lowpass", frequency: 700 + brightness * 3500, Q: 1.2, rolloff: -24 }).connect(delay);
       const dry = new Tone.Gain(.48).connect(master);
       filter.connect(dry);
-      // Band-limit the transient-rich layers before delay/reverb. The melody
-      // cutoff follows brightness but stays below the narrow upper sidebands
-      // that were measured as intermittent chirps on active FM notes.
-      const melodyGuard = new Tone.Filter({ type: "lowpass", frequency: 4200 + brightness * 1800, Q: .12, rolloff: -24 }).connect(delay);
+      // The clickless sine melody has no FM sidebands; this final zero-Q
+      // guard and dedicated ceiling protect small speakers from imported
+      // settings with unusually bright or boosted melody strips.
+      const melodyGuard = new Tone.Filter({ type: "lowpass", frequency: 2800 + brightness * 1000, Q: .01, rolloff: -24 }).connect(delay);
+      const melodyCeiling = new Tone.Limiter(-8).connect(melodyGuard);
       const noiseGuard = new Tone.Filter({ type: "lowpass", frequency: 5200, Q: .2, rolloff: -24 }).connect(reverb);
       const trackGains = {};
       for (const key of Object.keys(TRACK_DEFS)) {
         const mix = mixer[key];
         const silent = mix.mute || (anySolo && !mix.solo);
         const target = silent ? 0 : dbToGain(mix.level);
-        const route = key === "melody" ? melodyGuard : (key === "noise" ? noiseGuard : filter);
+        const route = key === "melody" ? melodyCeiling : (key === "noise" ? noiseGuard : filter);
         trackGains[key] = new Tone.Gain(target).connect(route);
       }
       const lfo = new Tone.LFO({ frequency: .035, min: 150 + brightness * 260, max: 700 + brightness * 4200, phase: 180 }).start(plan.audioStart);
@@ -1332,12 +1484,7 @@
         oscillator: { type: "triangle" }, envelope: { attack: hazeEnv.attack, decay: 4, sustain: .3, release: hazeEnv.release }
       }).connect(trackGains.haze);
       haze.maxPolyphony = 18; haze.volume.value = -19;
-      const melody = new Tone.PolySynth(Tone.FMSynth, {
-        harmonicity: 1.0, modulationIndex: .65, oscillator: { type: "sine" }, modulation: { type: "sine" },
-        envelope: { attack: melodyEnv.attack, decay: 1.4, sustain: .06, release: melodyEnv.release },
-        modulationEnvelope: { attack: .45, decay: 1.6, sustain: .02, release: 1.4 }
-      }).connect(trackGains.melody);
-      melody.maxPolyphony = 32; melody.volume.value = -15;
+      const melody = createClicklessMelody(trackGains.melody, melodyEnv);
       // Alternate overlapping bass pulses through a small polyphonic pool.
       // A single MonoSynth was being retriggered at the exact release sample,
       // which can produce an intermittent chirp even in a single scene.
@@ -1391,7 +1538,7 @@
         const item = melody.length ? melody[step % melody.length] : null;
         if (item?.active) {
           const bright = clamp(snapshotNumber(graph.settings, "brightness", .45), 0, 1);
-          const velocity = snapshotVelocity(item.velocity * (.65 + bright * .55), graph.settings);
+          const velocity = Math.min(MELODY_SAFETY.maxVelocity, snapshotVelocity(item.velocity * (.58 + bright * .34), graph.settings));
           graph.melody.triggerAttackRelease(item.note, duration(item.duration, "melody"), time, velocity);
         }
         if (step % 16 === 12 && seeded() < .34) {
@@ -1795,6 +1942,161 @@
     }
 
     // ---------------------------------------------------------------------
+    // Adaptive audio-buffer and scheduler safety
+    // ---------------------------------------------------------------------
+    function bufferSafetyMode() {
+      return ["auto", "safe", "maximum"].includes(els.bufferSafety?.value) ? els.bufferSafety.value : "auto";
+    }
+
+    function isConstrainedDevice() {
+      const cores = Number(navigator.hardwareConcurrency || 4);
+      const memory = Number(navigator.deviceMemory || 4);
+      const coarse = window.matchMedia?.("(pointer: coarse)")?.matches;
+      return coarse || cores <= 4 || memory <= 4 || Math.min(window.innerWidth, window.innerHeight) < 720;
+    }
+
+    function resolvedBufferSafetyProfile() {
+      const mode = bufferSafetyMode();
+      if (mode === "safe" || mode === "maximum") return { ...BUFFER_SAFETY_PROFILES[mode], mode };
+      const level = clamp(Number(state.bufferSafety.autoLevel) || 0, 0, 2);
+      if (level >= 2) return { ...BUFFER_SAFETY_PROFILES.maximum, mode: "auto", label: "Auto · maximum" };
+      if (level >= 1 || isConstrainedDevice()) return { ...BUFFER_SAFETY_PROFILES.safe, mode: "auto", label: level ? "Auto · raised" : "Auto · mobile" };
+      return {
+        label: "Auto", mode: "auto", lookAhead: .16, updateInterval: .035, eventLead: .01,
+        visualReliefMs: 5000, shedSeconds: 1.5, renderScaleCap: 1,
+        melodyVoices: 64, droneVoices: 22, hazeVoices: 16, bassVoices: 8
+      };
+    }
+
+    function bufferSafetyVoiceLimit() {
+      return state?.bufferSafety?.profile?.melodyVoices || resolvedBufferSafetyProfile().melodyVoices || MELODY_SAFETY.maxVoices;
+    }
+
+    function updateBufferSafetyOutput(note = "") {
+      const output = $("bufferSafetyOut");
+      if (!output) return;
+      const profile = state?.bufferSafety?.profile || resolvedBufferSafetyProfile();
+      const totalMs = Math.round((profile.lookAhead + profile.updateInterval) * 1000);
+      output.value = note || `${profile.label} · ${totalMs} ms`;
+    }
+
+    function applyBufferSafetyProfile({ announce = false } = {}) {
+      const profile = resolvedBufferSafetyProfile();
+      state.bufferSafety.profile = profile;
+      state.bufferSafety.selectedMode = bufferSafetyMode();
+      if (window.Tone) {
+        try {
+          const context = Tone.getContext();
+          context.lookAhead = profile.lookAhead;
+          context.updateInterval = profile.updateInterval;
+        } catch (error) {
+          console.warn("Could not apply Tone.js buffer scheduling profile", error);
+        }
+      }
+      if (state.audioReady && state.audio) {
+        state.audio.drone.maxPolyphony = profile.droneVoices;
+        state.audio.haze.maxPolyphony = profile.hazeVoices;
+        state.audio.bass.maxPolyphony = profile.bassVoices;
+      }
+      updateBufferSafetyOutput();
+      if (announce) setStatus(`${profile.label} buffer safety enabled · ${Math.round(profile.lookAhead * 1000)} ms look-ahead`);
+      return profile;
+    }
+
+    function safeTransportStartDelay() {
+      const p = state.bufferSafety.profile || resolvedBufferSafetyProfile();
+      return Math.max(.08, p.lookAhead + p.updateInterval + .025);
+    }
+
+    function guardedEventTime(time) {
+      const now = Tone.now();
+      const requested = Number(time);
+      const p = state.bufferSafety.profile || resolvedBufferSafetyProfile();
+      return Math.max(Number.isFinite(requested) ? requested : now, now + p.eventLead);
+    }
+
+    function bufferSafetySheddingActive() {
+      return window.Tone && Tone.now() < (state.bufferSafety.shedUntil || 0);
+    }
+
+    function resumeVisualsAfterSafety() {
+      state.bufferSafety.visualSuppressed = false;
+      state.bufferSafety.visualResumeTimer = null;
+      if (state.visualsEnabled && !state.visualWorker) initWorker();
+      if (state.visualsEnabled) {
+        state.lastFrame = performance.now();
+        requestVisual(true);
+        els.renderChip.textContent = "Field recovering";
+      }
+    }
+
+    function suppressVisualsForAudioSafety(durationMs) {
+      if (!state.visualsEnabled) return;
+      state.bufferSafety.visualSuppressed = true;
+      if (state.visualWorker) state.visualWorker.terminate();
+      state.visualWorker = null;
+      state.workerBusy = false;
+      state.workerFps = 0;
+      els.renderChip.textContent = "Audio safety relief";
+      clearTimeout(state.bufferSafety.visualResumeTimer);
+      state.bufferSafety.visualResumeTimer = setTimeout(resumeVisualsAfterSafety, Math.max(1000, durationMs));
+    }
+
+    function handleBufferStress(reason = "scheduler stall", amount = 1) {
+      if (!state.playing) return;
+      const safety = state.bufferSafety;
+      const nowMs = performance.now();
+      if (nowMs - safety.lastStressAt < 900) return;
+      safety.lastStressAt = nowMs;
+      safety.stressCount += Math.max(1, Number(amount) || 1);
+      if (bufferSafetyMode() === "auto") {
+        safety.autoLevel = Math.min(2, safety.autoLevel + 1);
+        applyBufferSafetyProfile();
+      }
+      const p = safety.profile || resolvedBufferSafetyProfile();
+      safety.shedUntil = Math.max(safety.shedUntil || 0, Tone.now() + p.shedSeconds);
+      suppressVisualsForAudioSafety(p.visualReliefMs);
+      updateBufferSafetyOutput(`${p.label} · protecting`);
+      console.warn(`Audio buffer safety activated: ${reason}`);
+    }
+
+    function startBufferSafetyMonitor() {
+      if (state.bufferSafety.monitorTimer || !window.Tone) return;
+      const safety = state.bufferSafety;
+      const raw = Tone.getContext()?.rawContext;
+      safety.lastMonitorAt = performance.now();
+      safety.lastUnderrunEvents = Number(raw?.playbackStats?.underrunEvents || 0);
+      safety.monitorTimer = setInterval(() => {
+        const nowMs = performance.now();
+        const expected = 500;
+        const drift = nowMs - safety.lastMonitorAt - expected;
+        safety.lastMonitorAt = nowMs;
+        if (!state.playing || document.hidden) return;
+        const stats = raw?.playbackStats;
+        if (stats && Number.isFinite(Number(stats.underrunEvents))) {
+          const next = Number(stats.underrunEvents);
+          if (next > safety.lastUnderrunEvents) handleBufferStress("reported audio underrun", next - safety.lastUnderrunEvents);
+          safety.lastUnderrunEvents = next;
+        } else if (drift > 180) {
+          handleBufferStress(`main-thread stall ${Math.round(drift)} ms`);
+        }
+      }, 500);
+
+      if (raw?.addEventListener && !safety.contextListener) {
+        safety.contextListener = () => {
+          if (!state.playing) return;
+          if (raw.state === "running") {
+            fadeOutput(0, .01);
+            setTimeout(() => state.playing && fadeOutput(1, .32), 35);
+          } else if (raw.state === "interrupted") {
+            fadeOutput(0, .025);
+          }
+        };
+        raw.addEventListener("statechange", safety.contextListener);
+      }
+    }
+
+    // ---------------------------------------------------------------------
     // Tone.js audio engine
     // ---------------------------------------------------------------------
     function showError(message) {
@@ -1807,6 +2109,8 @@
       if (state.audioReady) return;
       if (!window.Tone) throw new Error("Tone.js could not be loaded. Check the network connection, then reload the page.");
       await Tone.start();
+      applyBufferSafetyProfile();
+      startBufferSafetyMonitor();
 
       // Keep the original, proven audio graph intact. The mobile safety
       // controls live only at the final output gate/limiter so they cannot
@@ -1820,15 +2124,16 @@
       const filter = new Tone.Filter({ type: "lowpass", frequency: 1200, Q: 1.2, rolloff: -24 }).connect(delay);
       const dry = new Tone.Gain(.48).connect(master);
       filter.connect(dry);
-      // A steep, brightness-aware guard removes the short FM sideband bursts
-      // that are exaggerated by small mobile speakers.
-      const melodyGuard = new Tone.Filter({ type: "lowpass", frequency: 4200 + controlValue("brightness") * 1800, Q: .12, rolloff: -24 }).connect(delay);
+      // One-shot sine notes are intrinsically band-limited. A zero-Q guard
+      // plus a dedicated melody ceiling makes imported boosts safe as well.
+      const melodyGuard = new Tone.Filter({ type: "lowpass", frequency: 2800 + controlValue("brightness") * 1000, Q: .01, rolloff: -24 }).connect(delay);
+      const melodyCeiling = new Tone.Limiter(-8).connect(melodyGuard);
       const noiseGuard = new Tone.Filter({ type: "lowpass", frequency: 5200, Q: .2, rolloff: -24 }).connect(reverb);
       const trackGains = {
         drone: new Tone.Gain(1).connect(filter),
         haze: new Tone.Gain(1).connect(filter),
         bass: new Tone.Gain(1).connect(filter),
-        melody: new Tone.Gain(1).connect(melodyGuard),
+        melody: new Tone.Gain(1).connect(melodyCeiling),
         noise: new Tone.Gain(1).connect(noiseGuard)
       };
       const lfo = new Tone.LFO({ frequency: .035, min: 240, max: 2600, phase: 180 }).start();
@@ -1854,16 +2159,7 @@
       haze.maxPolyphony = 18;
       haze.volume.value = -19;
 
-      const melody = new Tone.PolySynth(Tone.FMSynth, {
-        harmonicity: 1.0,
-        modulationIndex: .65,
-        oscillator: { type: "sine" },
-        modulation: { type: "sine" },
-        envelope: { attack: melodyEnv.attack, decay: 1.4, sustain: .06, release: melodyEnv.release },
-        modulationEnvelope: { attack: .45, decay: 1.6, sustain: .02, release: 1.4 }
-      }).connect(trackGains.melody);
-      melody.maxPolyphony = 32;
-      melody.volume.value = -15;
+      const melody = createClicklessMelody(trackGains.melody, melodyEnv);
 
       const bass = new Tone.PolySynth(Tone.MonoSynth, {
         portamento: .035,
@@ -1884,8 +2180,9 @@
       const fft = new Tone.FFT({ size: 64, smoothing: .85, normalRange: true });
       safetyGain.connect(fft);
 
-      state.audio = { limiter, safetyGain, master, reverb, delay, filter, melodyGuard, noiseGuard, dry, trackGains, lfo, drone, haze, melody, bass, noise, fft };
+      state.audio = { limiter, safetyGain, master, reverb, delay, filter, melodyGuard, melodyCeiling, noiseGuard, dry, trackGains, lfo, drone, haze, melody, bass, noise, fft };
       state.audioReady = true;
+      applyBufferSafetyProfile();
       updateMixerAudio(true);
       els.audioChip.textContent = "Audio ready";
     }
@@ -2015,6 +2312,7 @@
       // transition both compositions are active with equal-power weights, so
       // the transport never needs to stop or jump between imported systems.
       state.scheduleIds.push(T.scheduleRepeat((time) => {
+        time = guardedEventTime(time);
         state.droneCycle = (state.droneCycle || 0) + 1;
         for (const layer of getPlaybackLayers()) {
           const c = layer.composition;
@@ -2027,6 +2325,7 @@
       }, "4m", 0));
 
       state.scheduleIds.push(T.scheduleRepeat((time) => {
+        time = guardedEventTime(time);
         for (const layer of getPlaybackLayers()) {
           const c = layer.composition;
           if (!c?.upperDrone?.length) continue;
@@ -2035,6 +2334,7 @@
       }, "4m", "2m"));
 
       state.scheduleIds.push(T.scheduleRepeat((time) => {
+        time = guardedEventTime(time);
         for (const layer of getPlaybackLayers()) {
           const c = layer.composition;
           if (!c) continue;
@@ -2044,22 +2344,24 @@
       }, "2m", 0));
 
       state.scheduleIds.push(T.scheduleRepeat((time) => {
+        time = guardedEventTime(time);
+        const shedding = bufferSafetySheddingActive();
         for (const layer of getPlaybackLayers()) {
           const c = layer.composition;
           if (!c?.melody?.length) continue;
           const step = c.melody[state.transportStep % c.melody.length];
-          if (step?.active) {
+          if (step?.active && !shedding) {
             const brightness = controlValue("brightness");
-            const vel = clamp(step.velocity * (.65 + brightness * .55) * layer.gain, .001, .98);
+            const vel = clamp(step.velocity * (.58 + brightness * .34) * layer.gain, .001, MELODY_SAFETY.maxVelocity);
             a.melody.triggerAttackRelease(step.note, scaledDuration(step.duration, "melody"), time, vel);
             Tone.getDraw().schedule(() => emitNoteVisual(step.note, vel, step.systemIndex, 3.2), time);
           }
         }
-        if (state.transportStep % 16 === 12 && Math.random() < .34) a.noise.triggerAttackRelease(scaledDuration("2n", "noise"), time, safeVelocity(.09));
+        if (!shedding && state.transportStep % 16 === 12 && Math.random() < .34) a.noise.triggerAttackRelease(scaledDuration("2n", "noise"), time, safeVelocity(.09));
         state.transportStep++;
       }, "8n", 0));
 
-      if (wasStarted || state.playing) T.start("+0.08");
+      if (wasStarted || state.playing) T.start(`+${safeTransportStartDelay().toFixed(3)}`);
     }
 
     async function togglePlayback() {
@@ -2104,6 +2406,10 @@
     }
 
     function updateAudioParameters() {
+      if (state.bufferSafety.selectedMode !== bufferSafetyMode()) {
+        state.bufferSafety.autoLevel = 0;
+        applyBufferSafetyProfile();
+      }
       if (!state.audioReady) return;
       const a = state.audio;
       const bright = controlValue("brightness");
@@ -2111,7 +2417,7 @@
       smoothParam(a.reverb.wet, controlValue("reverb"), .4);
       smoothParam(a.delay.wet, .08 + gravity * .27, .4);
       smoothParam(a.delay.feedback, .16 + gravity * .28, .4);
-      smoothParam(a.melodyGuard.frequency, 4200 + bright * 1800, .4);
+      smoothParam(a.melodyGuard.frequency, 2800 + bright * 1000, .55);
       a.lfo.min = 150 + bright * 260;
       a.lfo.max = 700 + bright * 4200;
       const dynamics = normalizeDynamicRange();
@@ -2208,6 +2514,9 @@
     function setVisualsEnabled(enabled, { persist = true } = {}) {
       state.visualsEnabled = Boolean(enabled);
       if (!state.visualsEnabled) {
+        clearTimeout(state.bufferSafety.visualResumeTimer);
+        state.bufferSafety.visualResumeTimer = null;
+        state.bufferSafety.visualSuppressed = false;
         if (state.visualWorker) state.visualWorker.terminate();
         state.visualWorker = null;
         state.workerBusy = false;
@@ -2217,8 +2526,8 @@
         state.nextRenderAt = 0;
         state.workerFrames = 0;
         state.lastWorkerFpsAt = performance.now();
-        if (!state.visualWorker) initWorker();
-        requestVisual(true);
+        if (!state.bufferSafety.visualSuppressed && !state.visualWorker) initWorker();
+        if (!state.bufferSafety.visualSuppressed) requestVisual(true);
       }
       updateVisualToggleUI();
       if (persist) {
@@ -2248,14 +2557,15 @@
     }
 
     function requestVisual(force = false) {
-      if (!state.visualsEnabled || !state.visualWorker || !state.systems.length || state.workerBusy) return;
+      if (!state.visualsEnabled || state.bufferSafety.visualSuppressed || !state.visualWorker || !state.systems.length || state.workerBusy) return;
       const now = performance.now();
       const targetInterval = state.width < 700 ? 105 : 76;
       if (!force && now < state.nextRenderAt) return;
       state.nextRenderAt = now + targetInterval;
       state.workerBusy = true;
       const baseW = state.width < 700 ? 190 : 270;
-      const w = Math.max(120, Math.round(baseW * state.renderScale));
+      const safetyCap = state.playing ? (state.bufferSafety.profile?.renderScaleCap || 1.16) : 1.16;
+      const w = Math.max(120, Math.round(baseW * Math.min(state.renderScale, safetyCap)));
       const h = Math.max(80, Math.round(w * state.height / state.width));
       state.visualWorker.postMessage({
         w, h, time: state.visualTime, systems: state.systems, maxIter: state.width < 700 ? 54 : 64,
@@ -2376,7 +2686,7 @@
       state.lastFrame = nowMs;
       updateArrangementPlayback(nowMs / 1000);
 
-      if (state.visualsEnabled) {
+      if (state.visualsEnabled && !state.bufferSafety.visualSuppressed) {
         state.visualTime += dt;
         requestVisual();
         const energy = getAudioEnergy();
@@ -2499,6 +2809,12 @@
         scheduleAutoSave();
       });
     });
+    els.bufferSafety.addEventListener("change", () => {
+      state.bufferSafety.autoLevel = 0;
+      applyBufferSafetyProfile({ announce: true });
+      updateOutputs();
+      scheduleAutoSave();
+    });
     els.systems.addEventListener("input", () => { updateOutputs(); scheduleAutoSave(); });
     els.systems.addEventListener("change", () => { if (state.arrangement.running) stopArrangement(false); generateComposition(); });
     els.key.addEventListener("change", () => { if (state.arrangement.running) stopArrangement(false); generateComposition(); });
@@ -2537,7 +2853,7 @@
     });
     els.arrangerCollapse.addEventListener("click", () => {
       els.arranger.classList.toggle("collapsed");
-      els.arrangerCollapse.textContent = els.arranger.classList.contains("collapsed") ? "›" : "‹";
+      els.arrangerCollapse.textContent = els.arranger.classList.contains("collapsed") ? "⌃" : "⌄";
     });
     els.sceneList.addEventListener("input", (event) => {
       const input = event.target.closest("[data-scene-field]");
@@ -2574,7 +2890,7 @@
     els.mixerReset.addEventListener("click", resetMixer);
     els.mixerCollapse.addEventListener("click", () => {
       els.mixer.classList.toggle("collapsed");
-      els.mixerCollapse.textContent = els.mixer.classList.contains("collapsed") ? "⌄" : "⌃";
+      els.mixerCollapse.textContent = els.mixer.classList.contains("collapsed") ? "⌃" : "⌄";
     });
     els.trackList.addEventListener("input", (event) => {
       const input = event.target.closest("[data-mixer-field]");
@@ -2647,6 +2963,7 @@
     refreshPresetSelect();
     renderMixerUI();
     renderArrangementUI();
+    applyBufferSafetyProfile();
     updateOutputs();
     try { state.visualsEnabled = localStorage.getItem(VISUALS_STORAGE_KEY) !== "0"; } catch (_) { state.visualsEnabled = true; }
     if (state.visualsEnabled) initWorker();
