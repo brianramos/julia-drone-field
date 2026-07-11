@@ -2315,14 +2315,24 @@
 
     function restartScheduleSafely() {
       if (!state.audioReady || !state.playing) return;
-      if (state.rebuildTimer) clearTimeout(state.rebuildTimer);
-      fadeOutput(0, .06);
-      state.rebuildTimer = setTimeout(() => {
-        state.rebuildTimer = null;
-        if (!state.playing) return;
-        rebuildSchedule(true);
-        fadeOutput(1, .14);
-      }, 75);
+      // Seamless live re-composition. The four scheduleRepeat callbacks read
+      // state.composition, state.systems, the mixer and the controls LIVE on
+      // every cycle, so a new seed / scale / density / systems / duration value
+      // is adopted on the next bar with the transport still running. We used to
+      // stop the transport (T.stop(); position = 0) and rebuild here; that
+      // stop→reschedule→restart was the seam that produced the rare click when
+      // a regenerate coincided with a main-thread stall. Keeping the transport
+      // running removes the seam entirely (and makes regeneration gap-free).
+      // Only tempo needs attention, and bpm ramps smoothly.
+      if (state.rebuildTimer) { clearTimeout(state.rebuildTimer); state.rebuildTimer = null; }
+      if (!state.scheduleIds.length) { rebuildSchedule(true); return; } // defensive: schedule lost while playing
+      // Snap the transport to a downbeat so the new drone/bass re-state promptly
+      // (preserving the original "Generate = new piece" response) WITHOUT the
+      // stop→restart that caused the click. Rewinding position on a running
+      // transport keeps the output gate open the whole time, so there is no seam.
+      try { Tone.getTransport().position = 0; } catch (_) {}
+      state.transportStep = 0;
+      smoothParam(Tone.getTransport().bpm, controlValue("tempo"), .4);
     }
 
     function clearSchedule() {
@@ -2347,6 +2357,18 @@
       if (!state.audioReady || !state.composition) return;
       const T = Tone.getTransport();
       const wasStarted = T.state === "started";
+      // Hard-pin the output gate to zero before releasing/retriggering any
+      // voices. restartScheduleSafely() has already ramped it down, so this is
+      // 0-from-~0 (no step of its own), but it GUARANTEES the teardown and the
+      // transport stop/restart happen in true silence. Without it, a main-
+      // thread stall could let releaseAll()/T.stop() land while the gate was
+      // still fractionally open, surfacing as an intermittent level-step click.
+      // The caller reopens with fadeOutput(1, …) once the new schedule is armed.
+      if (restart && state.audio?.safetyGain) {
+        const g = state.audio.safetyGain.gain, now = Tone.now();
+        if (typeof g.cancelScheduledValues === "function") g.cancelScheduledValues(now);
+        if (typeof g.setValueAtTime === "function") g.setValueAtTime(0, now); else g.value = 0;
+      }
       clearSchedule();
       T.bpm.value = controlValue("tempo");
       T.timeSignature = [4,4];
@@ -2431,7 +2453,7 @@
           // reliable on iOS/Android than delaying transport startup.
           fadeOutput(0, .01);
           rebuildSchedule(true);
-          fadeOutput(1, .22);
+          fadeOutput(1, .4);
         } else {
           if (state.arrangement.running) stopArrangement(false);
           state.playing = false;
