@@ -207,7 +207,12 @@
       background: var(--panel-strong); backdrop-filter: blur(25px) saturate(130%); box-shadow: var(--shadow);
       transition: transform .35s ease, opacity .35s ease;
     }
-    #arranger.collapsed { transform: translateY(calc(100% - 58px)); }
+    /* Slide by the same viewport-based distance the always-tall panel/mixer use
+       (their max-height − 58px), NOT the arranger's own height. The arranger's
+       content height varies with the number of scenes, so a percentage slide
+       left a short/empty arranger only partly collapsed; this docks its header
+       at the same spot as the other two regardless of content. */
+    #arranger.collapsed { transform: translateY(calc(100vh - 203px)); }
     .arranger-head { min-height: 57px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 12px 11px 15px; border-bottom: 1px solid var(--line); }
     .arranger-title { min-width: 0; }
     .arranger-title strong { display: block; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
