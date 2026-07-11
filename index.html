@@ -870,15 +870,17 @@
       safe: {
         label: "Safe", lookAhead: .26, updateInterval: .045, eventLead: .014,
         visualReliefMs: 7000, shedSeconds: 2.5, renderScaleCap: .86,
+        // reverbDecay: the convolution reverb is ~1/3 of the audio-render CPU
+        // budget and its cost scales with the impulse length, so constrained
+        // devices get a shorter (still spacious) tail to buy render headroom
+        // and avoid the underrun crackle that appears on dense material.
+        reverbDecay: 5,
         melodyVoices: 48, droneVoices: 22, hazeVoices: 18, bassVoices: 10
       },
       maximum: {
         label: "Maximum", lookAhead: .42, updateInterval: .07, eventLead: .024,
         visualReliefMs: 13000, shedSeconds: 5, renderScaleCap: .68,
-        // Drone/haze/bass are cheap sine & triangle voices (the fractal worker
-        // is the real CPU cost), so these pools stay generous even in the
-        // mobile-performance profile -- a starved pool steals ringing voices,
-        // and a stolen voice jumps its oscillator mid-cycle: an audible click.
+        reverbDecay: 3.5,
         melodyVoices: 24, droneVoices: 18, hazeVoices: 14, bassVoices: 8
       }
     };
@@ -1450,7 +1452,7 @@
       const anySolo = Object.values(mixer).some(track => track.solo);
       const sceneFade = new Tone.Gain(0).connect(destination);
       const master = new Tone.Gain(.7).connect(sceneFade);
-      const reverb = new Tone.Reverb({ decay: 10, preDelay: .08, wet: reverbAmount }).connect(master);
+      const reverb = new Tone.Reverb({ decay: 6, preDelay: .08, wet: reverbAmount }).connect(master);
       if (reverb.ready && typeof reverb.ready.then === "function") readyPromises.push(reverb.ready);
       const delay = new Tone.PingPongDelay({
         delayTime: notationSeconds("8n.", bpm), feedback: .16 + gravity * .28, wet: .08 + gravity * .27
@@ -1972,7 +1974,7 @@
       if (level >= 1 || isConstrainedDevice()) return { ...BUFFER_SAFETY_PROFILES.safe, mode: "auto", label: level ? "Auto · raised" : "Auto · mobile" };
       return {
         label: "Auto", mode: "auto", lookAhead: .16, updateInterval: .035, eventLead: .01,
-        visualReliefMs: 5000, shedSeconds: 1.5, renderScaleCap: 1,
+        visualReliefMs: 5000, shedSeconds: 1.5, renderScaleCap: 1, reverbDecay: 6,
         melodyVoices: 64, droneVoices: 26, hazeVoices: 20, bassVoices: 10
       };
     }
@@ -2006,6 +2008,15 @@
         state.audio.drone.maxPolyphony = profile.droneVoices;
         state.audio.haze.maxPolyphony = profile.hazeVoices;
         state.audio.bass.maxPolyphony = profile.bassVoices;
+        // Shorten the convolution reverb tail on constrained/strained profiles.
+        // Tone.Reverb.decay regenerates the impulse response asynchronously, so
+        // only touch it when the target actually changes (avoids needless IR
+        // rebuilds). This trims the largest fixed slice of audio-render CPU.
+        const targetDecay = profile.reverbDecay || 6;
+        if (state.audio.reverb && Math.abs((state.audio._reverbDecay || 6) - targetDecay) > .01) {
+          try { state.audio.reverb.decay = targetDecay; state.audio._reverbDecay = targetDecay; }
+          catch (error) { console.warn("Could not adjust reverb decay for buffer safety", error); }
+        }
       }
       updateBufferSafetyOutput();
       if (announce) setStatus(`${profile.label} buffer safety enabled · ${Math.round(profile.lookAhead * 1000)} ms look-ahead`);
@@ -2162,7 +2173,11 @@
       const limiter = new Tone.Limiter(dynamics.maxDb).toDestination();
       const safetyGain = new Tone.Gain(0).connect(limiter);
       const master = new Tone.Gain(0.7).connect(safetyGain);
-      const reverb = new Tone.Reverb({ decay: 10, preDelay: .08, wet: controlValue("reverb") }).connect(master);
+      // Decay 6s (was 10s): the convolution IR is the single biggest audio-CPU
+      // cost and scales with its length. 6s is still a long, spacious tail but
+      // ~20% cheaper; the buffer-safety profiles shorten it further on
+      // constrained devices. This is the main defense against underrun crackle.
+      const reverb = new Tone.Reverb({ decay: 6, preDelay: .08, wet: controlValue("reverb") }).connect(master);
       const delay = new Tone.PingPongDelay({ delayTime: "8n.", feedback: .28, wet: .22 }).connect(reverb);
       const filter = new Tone.Filter({ type: "lowpass", frequency: 1200, Q: 1.2, rolloff: -24 }).connect(delay);
       const dry = new Tone.Gain(.48).connect(master);
