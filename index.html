@@ -74,20 +74,34 @@
     }
     .chip.live { color: #d9ffef; border-color: rgba(102,255,187,.38); background: rgba(16,76,54,.36); }
 
-    #visualToggle {
+    #topBar {
       position: fixed; left: 50%; top: max(18px, env(safe-area-inset-top)); z-index: 19;
-      min-width: 132px; height: 34px; padding: 0 14px; border-radius: 999px;
-      transform: translateX(-50%); backdrop-filter: blur(18px) saturate(130%);
+      transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: calc(100vw - 24px);
+    }
+    #visualToggle {
+      min-width: 132px; height: 34px; padding: 0 14px; border-radius: 999px; white-space: nowrap;
+      backdrop-filter: blur(18px) saturate(130%);
       border-color: rgba(115,230,255,.3); background: rgba(7,9,18,.7);
       box-shadow: 0 10px 34px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.07);
       font-size: 10px; font-weight: 760; letter-spacing: .1em; text-transform: uppercase;
     }
-    #visualToggle:hover { transform: translate(-50%, -1px); background: rgba(255,255,255,.11); }
-    #visualToggle:active { transform: translate(-50%, 1px); }
+    #visualToggle:hover { transform: translateY(-1px); background: rgba(255,255,255,.11); }
+    #visualToggle:active { transform: translateY(1px); }
     #visualToggle.paused {
       color: rgba(255,255,255,.72); border-color: rgba(255,139,216,.36);
       background: linear-gradient(135deg, rgba(120,38,108,.34), rgba(20,24,40,.78));
     }
+    .top-random {
+      height: 34px; padding: 0 13px; border-radius: 999px; white-space: nowrap;
+      backdrop-filter: blur(18px) saturate(130%); background: rgba(7,9,18,.66);
+      box-shadow: 0 10px 34px rgba(0,0,0,.26), inset 0 1px 0 rgba(255,255,255,.06);
+      font-size: 10px; font-weight: 760; letter-spacing: .08em; text-transform: uppercase;
+    }
+    #randomArrangement { border-color: rgba(236,97,203,.42); }
+    #randomArrangement:hover { background: linear-gradient(135deg, rgba(236,97,203,.26), rgba(20,24,40,.72)); }
+    #randomScene { border-color: rgba(115,230,255,.42); }
+    #randomScene:hover { background: linear-gradient(135deg, rgba(61,201,232,.26), rgba(20,24,40,.72)); }
+    #randomArrangement.working, #randomScene.working { opacity: .6; pointer-events: none; }
     body.visuals-off #stage,
     body.visuals-off #veil,
     body.visuals-off #grain { visibility: hidden; }
@@ -253,7 +267,9 @@
       .status-stack .chip:nth-child(n+3) { display: none; }
       #panel { right: 10px; top: auto; width: calc(100vw - 20px); max-height: none; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 16; }
       #panel.collapsed { transform: translateY(calc(100% - 58px)); }
-      #visualToggle { top: max(66px, calc(env(safe-area-inset-top) + 52px)); min-width: 118px; height: 31px; padding: 0 11px; font-size: 9px; }
+      #topBar { top: max(66px, calc(env(safe-area-inset-top) + 52px)); gap: 6px; }
+      #visualToggle { min-width: 92px; height: 31px; padding: 0 10px; font-size: 9px; }
+      .top-random { height: 31px; padding: 0 9px; font-size: 9px; letter-spacing: .05em; }
       #arranger { left: 10px; top: max(92px, calc(env(safe-area-inset-top) + 72px)); width: calc(100vw - 20px); max-height: 55vh; }
       #arranger.collapsed { transform: translateY(calc(100% - 50px)); }
       .arranger-body { max-height: calc(55vh - 58px); }
@@ -281,7 +297,7 @@
     @media (orientation: portrait) {
       html, body { overscroll-behavior: none; }
       header { z-index: 17; }
-      #visualToggle { z-index: 20; }
+      #topBar { z-index: 20; }
 
       #panelDeck {
         position: fixed;
@@ -402,7 +418,11 @@
     </div>
   </header>
 
-  <button id="visualToggle" class="secondary" type="button" aria-pressed="true" title="Pause visualization to reduce CPU/GPU use">◉ Visuals on</button>
+  <div id="topBar">
+    <button id="randomArrangement" class="secondary top-random" type="button" title="Build and play a random multi-scene arrangement">⚄ Arrange</button>
+    <button id="visualToggle" class="secondary" type="button" aria-pressed="true" title="Pause visualization to reduce CPU/GPU use">◉ Visuals on</button>
+    <button id="randomScene" class="secondary top-random" type="button" title="Generate a random scene">⚄ Scene</button>
+  </div>
 
   <main id="panelDeck" aria-label="Swipeable composer panels">
   <aside id="arranger" aria-label="Long-form arrangement composer">
@@ -917,7 +937,7 @@
       arrangementAddPreset: $("arrangementAddPreset"), arrangementImport: $("arrangementImport"), arrangementExport: $("arrangementExport"), arrangementClear: $("arrangementClear"),
       arrangementLoop: $("arrangementLoop"), arrangementSummary: $("arrangementSummary"), arrangementProgressBar: $("arrangementProgressBar"),
       sceneList: $("sceneList"), arrangementStatus: $("arrangementStatus"), arrangementFile: $("arrangementFile"), arrangementWav: $("arrangementWav"),
-      visualToggle: $("visualToggle"), panelDeck: $("panelDeck"), mobileDeckNav: $("mobileDeckNav")
+      visualToggle: $("visualToggle"), randomScene: $("randomScene"), randomArrangement: $("randomArrangement"), panelDeck: $("panelDeck"), mobileDeckNav: $("mobileDeckNav")
     };
     const ctx = els.canvas.getContext("2d", { alpha: false, desynchronized: true });
     const fractalCanvas = document.createElement("canvas");
@@ -1953,6 +1973,77 @@
     }
 
     // ---------------------------------------------------------------------
+    // Random scene / random arrangement generators
+    // ---------------------------------------------------------------------
+    function randomToken(prefix) {
+      const bytes = new Uint32Array(2);
+      crypto.getRandomValues(bytes);
+      return `${prefix}-${bytes[0].toString(36)}-${bytes[1].toString(36).slice(0, 4)}`;
+    }
+    // Roll a fresh, musical set of controls + seed. Ranges are kept inside
+    // pleasant bounds (slow-to-moderate tempo, mid density, spacious feel) so
+    // every roll lands on something usable rather than harsh.
+    function randomizeSceneControls(seedPrefix = "scene") {
+      const r = Math.random;
+      const rr = (lo, hi) => lo + (hi - lo) * r();
+      const scales = Object.keys(SCALES);
+      els.key.value = r() < 0.55 ? "auto" : NOTE_NAMES[Math.floor(r() * 12)];
+      els.scale.value = scales[Math.floor(r() * scales.length)];
+      els.tempo.value = String(Math.round(rr(38, 82)));
+      els.density.value = rr(0.24, 0.68).toFixed(2);
+      els.drift.value = rr(0.006, 0.024).toFixed(3);
+      els.gravity.value = rr(0.32, 0.86).toFixed(2);
+      els.reverb.value = rr(0.55, 0.88).toFixed(2);
+      els.brightness.value = rr(0.34, 0.86).toFixed(2);
+      els.motion.value = rr(0.34, 0.82).toFixed(2);
+      els.systems.value = String(3 + Math.floor(r() * 5)); // 3..7
+      els.seed.value = randomToken(seedPrefix);
+    }
+    function randomScene() {
+      if (state.arrangement.running) stopArrangement(false);
+      randomizeSceneControls("scene");
+      updateOutputs();
+      updateAudioParameters();
+      generateComposition();
+      setStatus("Rolled a random scene");
+    }
+    async function randomArrangement() {
+      if (els.randomArrangement.classList.contains("working")) return;
+      els.randomArrangement.classList.add("working");
+      try {
+        if (state.arrangement.running) stopArrangement(false);
+        state.arrangement.scenes = [];
+        state.arrangement.activeIndex = -1;
+        const count = 3 + Math.floor(Math.random() * 3); // 3..5 scenes
+        for (let i = 0; i < count; i++) {
+          randomizeSceneControls("scene");
+          // Build each scene's systems + composition without restarting audio
+          // for every roll; the arrangement start handles playback afterwards.
+          generateComposition(els.seed.value.trim() || "dendrite", { skipRestart: true, skipAutosave: true });
+          addCurrentToArrangement();
+          const scene = state.arrangement.scenes[state.arrangement.scenes.length - 1];
+          if (scene) {
+            scene.name = `Scene ${i + 1}`;
+            scene.duration = 45 + Math.floor(Math.random() * 105); // 45..150s
+            scene.transition = 8 + Math.floor(Math.random() * 20);  // 8..28s
+          }
+        }
+        state.arrangement.loop = true;
+        els.arrangementLoop.checked = true;
+        updateOutputs();
+        renderArrangementUI();
+        scheduleAutoSave();
+        setStatus(`Rolled a random ${count}-scene arrangement`);
+        await toggleArrangementPlayback();
+      } catch (error) {
+        console.error(error);
+        setStatus(error?.message || "Could not build a random arrangement", true);
+      } finally {
+        els.randomArrangement.classList.remove("working");
+      }
+    }
+
+    // ---------------------------------------------------------------------
     // Adaptive audio-buffer and scheduler safety
     // ---------------------------------------------------------------------
     function bufferSafetyMode() {
@@ -2876,6 +2967,8 @@
     // ---------------------------------------------------------------------
     els.play.addEventListener("click", togglePlayback);
     els.visualToggle.addEventListener("click", () => setVisualsEnabled(!state.visualsEnabled));
+    els.randomScene.addEventListener("click", randomScene);
+    els.randomArrangement.addEventListener("click", randomArrangement);
     els.generate.addEventListener("click", () => { if (state.arrangement.running) stopArrangement(false); generateComposition(); });
     els.save.addEventListener("click", savePng);
     els.collapse.addEventListener("click", () => {
