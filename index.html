@@ -1753,29 +1753,22 @@
       }
       const from = captureSettings(fromScene.name, false);
       const to = stripNestedArrangement(toScene.settings);
-      // Beat-quantized MUTATION, not a two-scene gain blend. A single system
-      // steps from A toward B on each bar; the crossfade length (seconds) is
-      // expressed in bars at the blended tempo so the transformation is locked
-      // to the pulse. No destination pre-seed / overlap — the note schedulers
-      // read one composition that we re-derive from the morphing field.
-      const fromTempo = Number(from.controls?.tempo) || 54;
-      const toTempo = Number(to.controls?.tempo) || 54;
-      const secPerBar = 4 * 60 / clamp((fromTempo + toTempo) / 2, 20, 240);
-      const steps = clamp(Math.round(duration / secPerBar), 1, 64);
-      const T = Tone.getTransport();
-      const ticksPerBar = (Number(T.PPQ) || 192) * 4;
-      state.sceneTransition = {
-        from, to, fromIndex, toIndex, startedAt: now, duration, progress: 0,
-        steps, appliedStep: -1, startTicks: Number(T.ticks) || 0, ticksPerBar,
-        rngSeed: hashSeed(`${fromScene.name}:${toScene.name}:${fromIndex}:${toIndex}:mutate`),
-        fromName: fromScene.name, toName: toScene.name
-      };
+      state.sceneTransition = { from, to, fromIndex, toIndex, startedAt: now, duration, progress: 0 };
       state.arrangement.sceneTransition = state.sceneTransition;
       state.arrangement.phase = "transition";
       state.arrangement.phaseStartedAt = now;
       renderArrangementUI();
-      setStatus(`Mutating “${fromScene.name}” → “${toScene.name}” over ${steps} bar${steps === 1 ? "" : "s"}`);
-      updateTransitionState(now, state.sceneTransition);
+      setStatus(`Crossfading “${fromScene.name}” → “${toScene.name}” over ${formatClock(duration)}`);
+
+      // Seed the destination's long layers immediately. Their own attack
+      // envelopes plus the scheduler's equal-power weights create overlap
+      // without stopping the transport or clicking the output gate.
+      if (state.audioReady && to.composition) {
+        const at = Tone.now() + .03;
+        const sustain = Math.max(duration + 4, 8);
+        state.audio.drone.triggerAttackRelease(to.composition.drone || [], sustain, at, safeVelocity(.08));
+        state.audio.haze.triggerAttackRelease(to.composition.upperDrone || [], sustain, at, safeVelocity(.035));
+      }
     }
     function interpolateDeep(a, b, t) {
       if (Number.isFinite(Number(a)) && Number.isFinite(Number(b)) && typeof a !== "boolean" && typeof b !== "boolean") return lerp(Number(a), Number(b), t);
@@ -1792,72 +1785,55 @@
       const count = Math.max(fromSystems.length, toSystems.length);
       return Array.from({ length: count }, (_, index) => interpolateDeep(fromSystems[index % fromSystems.length], toSystems[index % toSystems.length], t));
     }
-    // A single active system feeds the note schedulers. During a mutation we
-    // simply keep state.composition / state.systems up to date, so there is no
-    // dual-layer overlap to weight here.
-    function getPlaybackLayers() {
-      return [{ composition: state.composition, systems: state.systems, gain: 1 }];
+    function transitionProgress() {
+      const tr = state.sceneTransition;
+      if (!tr) return 0;
+      return clamp(((performance.now() / 1000) - tr.startedAt) / Math.max(.001, tr.duration), 0, 1);
     }
-    // Apply one mutation step at interpolation point t: morph the field geometry,
-    // continuous controls and mixer; pivot the discrete key/scale at the midpoint;
-    // and RE-DERIVE the score from the mutated field so the harmony and melody
-    // themselves transform. A fixed per-transition rng keeps the rhythmic identity
-    // stable across steps, so only the field/tonality drives the audible change.
-    function applyMutationStep(tr, t) {
-      const fromC = tr.from.controls || {}, toC = tr.to.controls || {};
+    function getPlaybackLayers() {
+      const tr = state.sceneTransition;
+      if (!tr || !tr.from?.composition || !tr.to?.composition) return [{ composition: state.composition, systems: state.systems, gain: 1 }];
+      const p = transitionProgress();
+      return [
+        { composition: tr.from.composition, systems: tr.from.systems || state.systems, gain: Math.cos(p * Math.PI * .5) },
+        { composition: tr.to.composition, systems: tr.to.systems || state.systems, gain: Math.sin(p * Math.PI * .5) }
+      ].filter(layer => layer.composition && layer.gain > .015);
+    }
+    function updateTransitionState(now, tr) {
+      const t = clamp((now - tr.startedAt) / Math.max(.001, tr.duration), 0, 1);
+      tr.progress = t;
+      els.arrangementProgressBar.style.width = `${t * 100}%`;
+      if (t < 1 && now - state.arrangement.lastUiAt < .08) return;
+      state.arrangement.lastUiAt = now;
+      const fromControls = tr.from.controls || {}, toControls = tr.to.controls || {};
       for (const id of CONTROL_IDS) {
         if (!els[id]) continue;
         if (els[id].tagName === "SELECT") {
-          const chosen = t < .5 ? fromC[id] : toC[id];
+          const chosen = t < .5 ? fromControls[id] : toControls[id];
           if (chosen != null && [...els[id].options].some(o => o.value === String(chosen))) els[id].value = String(chosen);
         } else {
-          const a = Number(fromC[id]), b = Number(toC[id]);
+          const a = Number(fromControls[id]), b = Number(toControls[id]);
           if (Number.isFinite(a) && Number.isFinite(b)) els[id].value = String(lerp(a, b, t));
         }
       }
       normalizeDynamicRange();
       const fromMixer = sanitizeMixer(tr.from.mixer), toMixer = sanitizeMixer(tr.to.mixer);
       for (const key of Object.keys(TRACK_DEFS)) {
-        for (const field of ["level", "duration", "fadeIn", "fadeOut"]) state.mixer[key][field] = lerp(fromMixer[key][field], toMixer[key][field], t);
+        for (const field of ["level","duration","fadeIn","fadeOut"]) state.mixer[key][field] = lerp(fromMixer[key][field], toMixer[key][field], t);
         state.mixer[key].mute = t < .5 ? fromMixer[key].mute : toMixer[key].mute;
         state.mixer[key].solo = t < .5 ? fromMixer[key].solo : toMixer[key].solo;
       }
       state.systems = interpolateSystems(tr.from.systems, tr.to.systems, t);
-      const fromComp = tr.from.composition || {}, toComp = tr.to.composition || {};
-      const rootRaw = t < .5 ? fromComp.rootPc : toComp.rootPc;
-      const rootPc = Number.isFinite(Number(rootRaw)) ? Math.round(Number(rootRaw)) : 0;
-      const scaleName = (t < .5 ? fromComp.scaleName : toComp.scaleName) || fromComp.scaleName || toComp.scaleName || "aeolian";
-      const density = lerp(Number(fromC.density) || .4, Number(toC.density) || .4, t);
-      const score = buildScore(state.systems, rootPc, scaleName, density, mulberry32(tr.rngSeed));
-      state.composition = {
-        name: `${tr.fromName} → ${tr.toName}`, rootPc, root: NOTE_NAMES[mod(rootPc, 12)], scaleName,
-        scale: score.scale, melody: score.melody, drone: score.drone, upperDrone: score.upperDrone, bass: score.bass, altBass: score.altBass
-      };
       updateOutputs();
       updateAudioParameters();
       updateMixerAudio(false, false);
       requestVisual(true);
-      const c0 = state.systems[0];
-      if (c0?.color) {
-        document.documentElement.style.setProperty("--accent", `hsl(${Math.round(c0.color.coolHue * 360)} 92% 72%)`);
-        document.documentElement.style.setProperty("--accent-2", `hsl(${Math.round(c0.color.warmHue * 360)} 92% 72%)`);
-      }
-    }
-    function updateTransitionState(now, tr) {
-      const T = Tone.getTransport();
-      const ticks = Number(T.ticks);
-      const barsElapsed = Math.max(0, ((Number.isFinite(ticks) ? ticks : tr.startTicks) - tr.startTicks) / tr.ticksPerBar);
-      const stepIndex = Math.min(tr.steps, Math.floor(barsElapsed));
-      const tCont = clamp(barsElapsed / tr.steps, 0, 1);
-      tr.progress = tCont;
-      els.arrangementProgressBar.style.width = `${tCont * 100}%`;
-      if (now - state.arrangement.lastUiAt > .1) {
-        state.arrangement.lastUiAt = now;
-        els.pieceName.textContent = `${tr.fromName} → ${tr.toName}`;
-        els.pieceMeta.textContent = `Mutating · bar ${Math.min(stepIndex + 1, tr.steps)}/${tr.steps}`;
-      }
-      if (barsElapsed >= tr.steps) {
-        // Land exactly on B's real score (not a re-derived approximation).
+      const fromName = state.arrangement.scenes[tr.fromIndex]?.name || "Scene";
+      const toName = state.arrangement.scenes[tr.toIndex]?.name || "Scene";
+      els.pieceName.textContent = `${fromName} → ${toName}`;
+      els.pieceMeta.textContent = `Crossfade ${Math.round(t * 100)}% · ${formatClock(Math.max(0, tr.duration * (1 - t)))} remaining`;
+
+      if (t >= 1) {
         applySettings(tr.to, { skipArrangement: true, skipAutosave: true, skipRestart: true, silent: true });
         state.sceneTransition = null;
         state.arrangement.sceneTransition = null;
@@ -1867,13 +1843,6 @@
         applyMixerEnvelopes();
         renderArrangementUI();
         setStatus(`Now playing “${state.arrangement.scenes[tr.toIndex]?.name || "scene"}”`);
-        return;
-      }
-      if (stepIndex !== tr.appliedStep) {
-        tr.appliedStep = stepIndex;
-        // Bar 0 keeps scene A intact; the mutation runs from bar 1 onward.
-        if (stepIndex >= 1) applyMutationStep(tr, clamp(stepIndex / tr.steps, 0, 1));
-        renderArrangementUI();
       }
     }
     function updateArrangementPlayback(now = performance.now() / 1000) {
@@ -1943,42 +1912,6 @@
       return systems;
     }
 
-    // Derive the musical score (melody + drone/haze/bass voicings) from a set of
-    // systems (the fractal c-values/geometry), a tonal centre and a density.
-    // Factored out of generateComposition so a scene transition can re-derive the
-    // score from an interpolated (morphing) field. The rng-call order is
-    // identical to the original inline code, so a given seed reproduces exactly.
-    function buildScore(systems, rootPc, scaleName, density, rng) {
-      const scale = SCALES[scaleName] || SCALES.aeolian;
-      const steps = 32;
-      const melody = [];
-      let priorDegree = Math.floor(rng() * scale.length);
-      for (let i = 0; i < steps; i++) {
-        const sys = systems[i % systems.length];
-        const f = orbitFeatures(sys, 5, i * .31 + sys.angle)[4];
-        const angular = (f.angle + Math.PI) / (Math.PI * 2);
-        const rawDegree = Math.floor(angular * scale.length * 2) - Math.floor(scale.length / 2);
-        const continuity = chance(rng, .72) ? clamp(rawDegree, priorDegree - 2, priorDegree + 2) : rawDegree;
-        priorDegree = continuity;
-        const register = i % 8 === 7 && chance(rng, .35) ? 5 : 4;
-        const midi = scaleMidi(rootPc, scale, continuity, register);
-        const accent = i % 8 === 0 ? 1 : (i % 4 === 0 ? .82 : .62);
-        const probability = clamp(density * (0.62 + sys.noteEnergy * .45) * (i % 2 ? .86 : 1.12), .04, .98);
-        melody.push({
-          note: midiToNote(midi), midi, active: chance(rng, probability), velocity: clamp(accent * rand(rng, .45, .84), .18, .92),
-          duration: pick(rng, chance(rng, .22) ? ["4n", "2n", "2n."] : ["8n", "4n", "4n."]),
-          systemIndex: i % systems.length
-        });
-      }
-      // Low voicing follows system c-values, then spreads across octaves.
-      const chordDegrees = [0, 2, 4, 6].slice(0, clamp(3 + Math.round(rng() * 2), 3, 4));
-      const drone = chordDegrees.map((d, i) => midiToNote(scaleMidi(rootPc, scale, d, 1 + (i > 1 ? 1 : 0))));
-      const upperDrone = [0, 4, 8].map((d, i) => midiToNote(scaleMidi(rootPc, scale, d, 3 + (i === 2 ? 1 : 0))));
-      const bass = midiToNote(scaleMidi(rootPc, scale, 0, 1));
-      const altBass = midiToNote(scaleMidi(rootPc, scale, chance(rng, .5) ? 3 : 4, 1));
-      return { scale, melody, drone, upperDrone, bass, altBass };
-    }
-
     function generateComposition(seedText = els.seed.value.trim() || "dendrite", options = {}) {
       state.seed = seedText;
       state.seedNumber = hashSeed(seedText);
@@ -1990,11 +1923,39 @@
       const rootPc = els.key.value === "auto" ? autoRoot : NOTE_NAMES.indexOf(els.key.value);
       const scaleNames = Object.keys(SCALES);
       const scaleName = els.scale.value === "auto" ? pick(rng, scaleNames) : els.scale.value;
+      const scale = SCALES[scaleName];
+      const steps = 32;
       const density = controlValue("density");
-      const score = buildScore(state.systems, rootPc, scaleName, density, rng);
+      const melody = [];
+      let priorDegree = Math.floor(rng() * scale.length);
+
+      for (let i = 0; i < steps; i++) {
+        const sys = state.systems[i % state.systems.length];
+        const f = orbitFeatures(sys, 5, i * .31 + sys.angle)[4];
+        const angular = (f.angle + Math.PI) / (Math.PI * 2);
+        const rawDegree = Math.floor(angular * scale.length * 2) - Math.floor(scale.length / 2);
+        const continuity = chance(rng, .72) ? clamp(rawDegree, priorDegree - 2, priorDegree + 2) : rawDegree;
+        priorDegree = continuity;
+        const register = i % 8 === 7 && chance(rng,.35) ? 5 : 4;
+        const midi = scaleMidi(rootPc, scale, continuity, register);
+        const accent = i % 8 === 0 ? 1 : (i % 4 === 0 ? .82 : .62);
+        const probability = clamp(density * (0.62 + sys.noteEnergy * .45) * (i % 2 ? .86 : 1.12), .04, .98);
+        melody.push({
+          note: midiToNote(midi), midi, active: chance(rng, probability), velocity: clamp(accent * rand(rng, .45, .84), .18, .92),
+          duration: pick(rng, chance(rng,.22) ? ["4n","2n","2n."] : ["8n","4n","4n."]),
+          systemIndex: i % state.systems.length
+        });
+      }
+
+      // Low voicing follows system c-values, then spreads across octaves.
+      const chordDegrees = [0, 2, 4, 6].slice(0, clamp(3 + Math.round(rng() * 2), 3, 4));
+      const drone = chordDegrees.map((d, i) => midiToNote(scaleMidi(rootPc, scale, d, 1 + (i > 1 ? 1 : 0))));
+      const upperDrone = [0, 4, 8].map((d, i) => midiToNote(scaleMidi(rootPc, scale, d, 3 + (i === 2 ? 1 : 0))));
+      const bass = midiToNote(scaleMidi(rootPc, scale, 0, 1));
+      const altBass = midiToNote(scaleMidi(rootPc, scale, chance(rng,.5) ? 3 : 4, 1));
       const name = `${pick(rng, ADJECTIVES)} ${pick(rng, NOUNS)} ${String(state.seedNumber % 997).padStart(3,"0")}`;
 
-      state.composition = { name, rootPc, root: NOTE_NAMES[rootPc], scaleName, scale: score.scale, melody: score.melody, drone: score.drone, upperDrone: score.upperDrone, bass: score.bass, altBass: score.altBass };
+      state.composition = { name, rootPc, root: NOTE_NAMES[rootPc], scaleName, scale, melody, drone, upperDrone, bass, altBass };
       state.transportStep = 0;
       state.recentNotes.length = 0;
       els.pieceName.textContent = name;
